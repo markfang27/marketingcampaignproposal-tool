@@ -60,9 +60,13 @@ export function BriefForm({
   onSubmit: (brief: BriefInput) => void;
 }) {
   const [brief, setBrief] = useState<BriefInput>(EMPTY_BRIEF);
+  const [industry, setIndustry] = useState<string>(CASE_INDUSTRIES[0]!);
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
 
-  const set = (name: Exclude<keyof BriefInput, "style">, value: string) =>
+  const set = (name: Exclude<keyof BriefInput, "style">, value: string) => {
+    setActiveCaseId(null);
     setBrief((b) => ({ ...b, [name]: value }));
+  };
 
   const ready =
     brief.brand.trim() &&
