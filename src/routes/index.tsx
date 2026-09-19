@@ -20,6 +20,7 @@ import type {
   Bilingual,
   BriefInput,
   CompetitorResult,
+  CompetitorSource,
   ContentResult,
   GroupName,
   GroupStatus,
