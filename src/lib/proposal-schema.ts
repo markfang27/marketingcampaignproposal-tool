@@ -33,6 +33,8 @@ export const PROPOSAL_STYLES: Record<
 
 export const BriefInputSchema = z.object({
   brand: z.string(),
+  clientName: z.string().default(""),
+  city: z.string().default(""),
   industry: z.string(),
   product: z.string(),
   audience: z.string(),

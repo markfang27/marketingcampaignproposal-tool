@@ -13,6 +13,8 @@ import {
 
 const EMPTY_BRIEF: BriefInput = {
   brand: "",
+  clientName: "",
+  city: "",
   industry: "",
   product: "",
   audience: "",
@@ -31,7 +33,17 @@ const FIELDS: {
   long?: boolean;
 }[] = [
   { name: "brand", label: "品牌名称", placeholder: "例如:轻汽 Sparkle" },
+  {
+    name: "clientName",
+    label: "客户名称",
+    placeholder: "例如:轻汽(上海)食品有限公司",
+  },
   { name: "industry", label: "所属行业", placeholder: "例如:饮料 / 新消费" },
+  {
+    name: "city",
+    label: "目标城市",
+    placeholder: "例如:上海、北京、成都",
+  },
   {
     name: "product",
     label: "产品 / 服务简介",
