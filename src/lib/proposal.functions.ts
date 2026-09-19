@@ -286,21 +286,66 @@ export const translateGroup = createServerFn({ method: "POST" })
 // ---------- 竞品品牌搜索:从公开网页找候选品牌 ----------
 const BRAND_QUERY = z.object({ query: z.string(), industry: z.string() });
 
+const BrandListSchema = z.object({
+  brands: z.array(
+    z.object({
+      name: z.string(),
+      note: z.string(),
+    }),
+  ),
+});
+
 export const searchBrands = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => BRAND_QUERY.parse(input))
   .handler(async ({ data }) => {
     const q = data.query.trim();
     if (!q) return [] as { name: string; note: string; url: string }[];
+
     const results = await webSearch(
-      `${q} ${data.industry} 品牌 竞品 对比`,
+      `${q} ${data.industry} 竞品 品牌 对比 市场份额`,
       6,
       false,
     );
-    return results.map((r) => ({
-      name: r.title.replace(/[|｜\-–—].*$/, "").trim().slice(0, 40) || r.url,
-      note: r.description.slice(0, 80),
-      url: r.url,
-    }));
+    if (!results.length) return [];
+
+    const digest = results
+      .map((r) => `- ${r.title}\n  ${r.description}\n  ${r.url}`)
+      .join("\n");
+
+    // 用 AI 从公开搜索结果里抽取真实品牌名(搜索标题多为文章名,不能直接当品牌)
+    const result = streamText({
+      model: buildModel(),
+      system:
+        "你是市场研究员。只能从给定的公开搜索结果中抽取真实存在的品牌名称,不得凭空编造。",
+      prompt: `行业:${data.industry || "未指定"}
+用户搜索关键词:${q}
+
+公开搜索结果:
+${digest}
+
+请从上面的资料中抽取 3-6 个与关键词同赛道、可作为竞品的真实品牌。
+name 只写品牌名(不超过 20 字,不要文章标题、不要公司全称后缀)。
+note 写 25 字以内的一句话说明(它在市场上的位置或特点)。
+若资料中品牌不足,可补充该行业公认的头部品牌。`,
+      output: Output.object({ schema: BrandListSchema }),
+      providerOptions: PROVIDER_OPTIONS,
+    });
+
+    try {
+      const out = await result.output;
+      const brands = out?.brands ?? [];
+      return brands
+        .filter((b) => b.name?.trim())
+        .slice(0, 6)
+        .map((b, i) => ({
+          name: b.name.trim().slice(0, 20),
+          note: (b.note ?? "").slice(0, 60),
+          url: results[i % results.length]!.url,
+        }));
+    } catch (error) {
+      console.error("[searchBrands] 抽取失败", error);
+      return [];
+    }
   });
 
 // ---------- 竞品分析:先抓公开资料,再由 AI 基于原文归纳 ----------
