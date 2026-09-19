@@ -2,6 +2,7 @@ import type {
   Bilingual,
   BriefInput,
   CompetitorResult,
+  CompetitorSource,
   ContentResult,
   PlanResult,
   StrategyResult,
