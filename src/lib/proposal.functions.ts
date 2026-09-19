@@ -1,16 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Output, NoObjectGeneratedError, streamText } from "ai";
+import { z } from "zod";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createLovableAiGatewayRunIdFetch } from "./ai-gateway.server";
 import {
   BriefInputSchema,
+  CompetitorOutputSchema,
   ContentOutputSchema,
   PlanOutputSchema,
   StrategyOutputSchema,
   type BriefInput,
+  type CompetitorResult,
   type ContentResult,
   type PlanResult,
   type StrategyResult,
+  type TranslatableKind,
 } from "./proposal-schema";
 
 const MODEL_ID = "openai/gpt-6-astra";
@@ -91,7 +95,24 @@ function assertContent(o: ContentResult): ContentResult {
 }
 
 function assertPlan(o: PlanResult): PlanResult {
-  if (!o || !o.phases?.length || !o.kpis?.length) {
+  if (
+    !o ||
+    !o.phases?.length ||
+    !o.kpis?.length ||
+    !o.budgetAllocation?.length
+  ) {
+    throw new Error(NON_EMPTY);
+  }
+  return o;
+}
+
+function assertCompetitors(o: CompetitorResult): CompetitorResult {
+  if (
+    !o ||
+    !o.competitors?.length ||
+    o.competitors.some((c) => !c.name?.trim() || !c.strengths?.length || !c.weaknesses?.length) ||
+    !o.differentiation?.trim()
+  ) {
     throw new Error(NON_EMPTY);
   }
   return o;
@@ -160,9 +181,10 @@ export const generatePlan = createServerFn({ method: "POST" })
       system: SYSTEM_PROMPT,
       prompt: `${briefPrompt(data)}
 
-请输出提案的执行排期与 KPI 框架。排期动作与指标权重必须体现多平台内容矩阵(小红书种草、抖音短平快、B站深度内容、微博话题)的生产方式和核心行为指标:
+请输出提案的执行排期、预算分配与 KPI 框架。排期动作与指标权重必须体现多平台内容矩阵(小红书种草、抖音短平快、B站深度内容、微博话题)的生产方式和核心行为指标:
 1. 执行排期:按投放周期(${data.duration})划分为预热期、引爆期、延续期 3 个阶段,每阶段含名称、覆盖时间(如"第 1-2 周")、阶段目标(30 字以内)、4-6 条具体动作;
-2. KPI 框架:按曝光层、互动层、转化层各给 2 条指标,每条含指标名和参考目标值(目标值要匹配预算量级 ${data.budget})。`,
+2. 预算分配:将总预算${data.totalBudget ? `(人民币 ${data.totalBudget})` : `(参考预算量级 ${data.budget},金额可写"约 XX 万元")`}拆分到内容制作、达人/媒体投放、传播执行(含平台采买与活动落地)三大项,每项含项目名、占比(如 "35%")、金额估算和 30 字以内的分配理由,三项占比合计 100%;
+3. KPI 框架:按曝光层、互动层、转化层各给 2 条指标,每条含指标名和参考目标值(目标值要匹配预算量级 ${data.budget})。`,
       output: Output.object({ schema: PlanOutputSchema }),
       providerOptions: PROVIDER_OPTIONS,
     });
@@ -171,6 +193,89 @@ export const generatePlan = createServerFn({ method: "POST" })
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 返回内容格式异常,请重试本模块");
+      }
+      throw error;
+    }
+  });
+
+export const generateCompetitors = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => BriefInputSchema.parse(input))
+  .handler(async ({ data }) => {
+    const model = buildModel();
+    const target = data.competitors.trim()
+      ? `重点分析客户指定的以下竞品:${data.competitors}`
+      : "请自行选取该品类中 2-3 个最具代表性、客户提案中最常被拿来对比的竞品品牌";
+    const result = streamText({
+      model,
+      system: SYSTEM_PROMPT,
+      prompt: `${briefPrompt(data)}
+
+请输出提案的竞品分析模块。${target}。
+每个竞品输出:
+1. 品牌名;
+2. 优势 2-3 条(每条 25 字以内,要具体到产品、渠道或人群资产);
+3. 劣势 2-3 条(每条 25 字以内,是可以被我们品牌攻击的薄弱点);
+4. 用户画像(60 字以内,描述它吸引的是哪类人、满足什么需求)。
+最后输出我方品牌的差异化定位:80 字以内,讲清与上述竞品错位竞争的位置,并承接 Brief 的核心诉求。`,
+      output: Output.object({ schema: CompetitorOutputSchema }),
+      providerOptions: PROVIDER_OPTIONS,
+    });
+    try {
+      return assertCompetitors(await result.output);
+    } catch (error) {
+      if (NoObjectGeneratedError.isInstance(error)) {
+        throw new Error("AI 返回内容格式异常,请重试本模块");
+      }
+      throw error;
+    }
+  });
+
+const TRANSLATE_INPUT = z.object({
+  kind: z.enum(["strategy", "content", "plan", "competitors"]),
+  payload: z.unknown(),
+});
+
+const KIND_LABEL: Record<TranslatableKind, string> = {
+  strategy: "市场洞察与核心策略",
+  content: "多平台内容矩阵",
+  plan: "执行排期、预算分配与 KPI",
+  competitors: "竞品分析",
+};
+
+const OUTPUT_SCHEMAS: Record<
+  TranslatableKind,
+  typeof StrategyOutputSchema | typeof ContentOutputSchema | typeof PlanOutputSchema | typeof CompetitorOutputSchema
+> = {
+  strategy: StrategyOutputSchema,
+  content: ContentOutputSchema,
+  plan: PlanOutputSchema,
+  competitors: CompetitorOutputSchema,
+};
+
+// 中英双语提案:将已生成的中文章节整段翻译为专业英文,结构不变
+export const translateGroup = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => TRANSLATE_INPUT.parse(input))
+  .handler(async ({ data }) => {
+    const model = buildModel();
+    const result = streamText({
+      model,
+      system:
+        "你是资深广告代理公司的双语提案撰稿人,负责把中文整合传播提案翻译成专业地道的英文,供跨国客户审阅。要求:广告与营销行业惯用英文表达,语体专业简洁;品牌名与产品名保留原文;所有数字、占比、金额保持不变;不增删信息,严格保持原文的结构与条目数量。",
+      prompt: `请把以下提案「${KIND_LABEL[data.kind]}」章节的中文内容完整翻译成英文,按相同结构输出。\n\n${JSON.stringify(data.payload)}`,
+      // 四种章节 schema 结构已知,已在上方按 kind 确定输出结构
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      output: Output.object({ schema: OUTPUT_SCHEMAS[data.kind] as any }),
+      providerOptions: PROVIDER_OPTIONS,
+    });
+    try {
+      return (await result.output) as
+        | StrategyResult
+        | ContentResult
+        | PlanResult
+        | CompetitorResult;
+    } catch (error) {
+      if (NoObjectGeneratedError.isInstance(error)) {
+        throw new Error("AI 翻译返回格式异常,请重试本模块");
       }
       throw error;
     }

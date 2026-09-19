@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, PenLine } from "lucide-react";
@@ -8,17 +8,22 @@ import { BriefForm } from "@/components/pitch/BriefForm";
 import { ProposalView } from "@/components/pitch/ProposalView";
 import { buildExportHtml, openExport } from "@/lib/export-html";
 import {
+  generateCompetitors,
   generateContent,
   generatePlan,
   generateStrategy,
+  translateGroup,
 } from "@/lib/proposal.functions";
 import type {
+  Bilingual,
   BriefInput,
+  CompetitorResult,
   ContentResult,
   GroupName,
   GroupStatus,
   PlanResult,
   StrategyResult,
+  TranslatableKind,
 } from "@/lib/proposal-schema";
 
 export const Route = createFileRoute("/")({
@@ -28,13 +33,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "输入客户 Brief,AI 按广告代理提案结构生成市场洞察、核心策略、传播主题、多平台内容矩阵、执行排期与 KPI 框架,并一键导出可打印的提案文档。",
+          "输入客户 Brief,AI 按广告代理提案结构生成市场洞察、核心策略、传播主题、多平台内容矩阵、执行排期、预算分配、KPI 框架与竞品分析,并一键导出可打印的提案文档。",
       },
       { property: "og:title", content: "Pitch Copilot — AI 营销提案工作台" },
       {
         property: "og:description",
         content:
-          "把 Brief 交给 AI,十分钟拿到一份可提案的整合传播方案:洞察、策略、内容矩阵、排期与 KPI,一键导出。",
+          "把 Brief 交给 AI,十分钟拿到一份可提案的整合传播方案:洞察、策略、内容矩阵、排期、预算、KPI 与竞品分析,一键导出。",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -43,36 +48,77 @@ export const Route = createFileRoute("/")({
   component: Workbench,
 });
 
-const IDLE = { strategy: "idle", content: "idle", plan: "idle" } as Record<
-  GroupName,
-  GroupStatus | "idle"
->;
+const IDLE = {
+  strategy: "idle",
+  content: "idle",
+  plan: "idle",
+  competitors: "idle",
+  translation: "idle",
+} as Record<GroupName, GroupStatus | "idle">;
+
+const TRANSLATE_ORDER: TranslatableKind[] = [
+  "strategy",
+  "content",
+  "plan",
+  "competitors",
+];
 
 function Workbench() {
   const runStrategy = useServerFn(generateStrategy);
   const runContent = useServerFn(generateContent);
   const runPlan = useServerFn(generatePlan);
+  const runCompetitors = useServerFn(generateCompetitors);
+  const runTranslate = useServerFn(translateGroup);
 
   const [brief, setBrief] = useState<BriefInput | null>(null);
   const [strategy, setStrategy] = useState<StrategyResult | null>(null);
   const [content, setContent] = useState<ContentResult | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
+  const [competitors, setCompetitors] = useState<CompetitorResult | null>(null);
+  const [translation, setTranslation] = useState<Bilingual>({});
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
+
+  // 已生成章节的最新值,供翻译步骤读取(避免闭包读到旧 state)
+  const resultsRef = useRef<{
+    strategy?: StrategyResult;
+    content?: ContentResult;
+    plan?: PlanResult;
+    competitors?: CompetitorResult;
+  }>({});
 
   const callGroup = async (group: GroupName, b: BriefInput) => {
     if (group === "strategy") {
       const r = await runStrategy({ data: b });
       if (!r) throw new Error("AI 返回内容为空");
+      resultsRef.current.strategy = r;
       setStrategy(r);
     } else if (group === "content") {
       const r = await runContent({ data: b });
       if (!r) throw new Error("AI 返回内容为空");
+      resultsRef.current.content = r;
       setContent(r);
-    } else {
+    } else if (group === "plan") {
       const r = await runPlan({ data: b });
       if (!r) throw new Error("AI 返回内容为空");
+      resultsRef.current.plan = r;
       setPlan(r);
+    } else if (group === "competitors") {
+      const r = await runCompetitors({ data: b });
+      if (!r) throw new Error("AI 返回内容为空");
+      resultsRef.current.competitors = r;
+      setCompetitors(r);
+    } else {
+      // translation:把已生成的中文章节逐个翻译成英文
+      for (const kind of TRANSLATE_ORDER) {
+        const payload = resultsRef.current[kind];
+        if (!payload) continue;
+        const r = await runTranslate({ data: { kind, payload } });
+        if (!r) throw new Error("AI 翻译返回为空");
+        const next = { ...translation };
+        (next as Record<TranslatableKind, unknown>)[kind] = r;
+        setTranslation(next);
+      }
     }
   };
 
@@ -99,10 +145,17 @@ function Workbench() {
     setStrategy(null);
     setContent(null);
     setPlan(null);
+    setCompetitors(null);
+    setTranslation({});
+    resultsRef.current = {};
     setGroupStatus({ ...IDLE });
     await runGroup("strategy", b);
     await runGroup("content", b);
     await runGroup("plan", b);
+    await runGroup("competitors", b);
+    if (b.language === "en") {
+      await runGroup("translation", b);
+    }
   };
 
   const retry = async (group: GroupName) => {
@@ -114,20 +167,22 @@ function Workbench() {
     setStrategy(null);
     setContent(null);
     setPlan(null);
+    setCompetitors(null);
+    setTranslation({});
+    resultsRef.current = {};
     setGroupStatus({ ...IDLE });
     window.scrollTo({ top: 0 });
   };
 
   const exportProposal = () => {
-    if (brief && strategy && content && plan) {
-      openExport(buildExportHtml({ brief, strategy, content, plan }));
+    if (brief && strategy && content && plan && competitors) {
+      openExport(buildExportHtml({ brief, strategy, content, plan, competitors, translation }));
     }
   };
 
-  const busy =
-    groupStatus.strategy === "loading" ||
-    groupStatus.content === "loading" ||
-    groupStatus.plan === "loading";
+  const busy = (
+    ["strategy", "content", "plan", "competitors", "translation"] as GroupName[]
+  ).some((g) => groupStatus[g] === "loading");
 
   return (
     <div className="min-h-screen bg-background">
@@ -171,6 +226,8 @@ function Workbench() {
           strategy={strategy}
           content={content}
           plan={plan}
+          competitors={competitors}
+          translation={translation}
           groupStatus={groupStatus}
           onRetry={retry}
           onExport={exportProposal}

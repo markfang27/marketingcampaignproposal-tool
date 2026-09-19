@@ -2,7 +2,9 @@ import { Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   SECTIONS,
+  type Bilingual,
   type BriefInput,
+  type CompetitorResult,
   type ContentResult,
   type GroupName,
   type GroupStatus,
@@ -10,14 +12,28 @@ import {
   type StrategyResult,
 } from "@/lib/proposal-schema";
 
+const TRANSLATE_ORDER = ["strategy", "content", "plan", "competitors"] as const;
+
 interface Props {
   brief: BriefInput;
   strategy: StrategyResult | null;
   content: ContentResult | null;
   plan: PlanResult | null;
+  competitors: CompetitorResult | null;
+  translation: Bilingual;
   groupStatus: Record<GroupName, GroupStatus | "idle">;
   onRetry: (group: GroupName) => void;
   onExport: () => void;
+}
+
+// 英文对照行:双语提案时显示在中文下方
+function En({ text }: { text: string | undefined }) {
+  if (!text?.trim()) return null;
+  return (
+    <p className="mt-1 text-[12px] leading-6 text-muted-foreground italic">
+      {text}
+    </p>
+  );
 }
 
 function SectionShell({
@@ -81,13 +97,23 @@ function Skeleton() {
   );
 }
 
-function Bullet({ title, detail }: { title: string; detail: string }) {
+function Bullet({
+  title,
+  detail,
+  en,
+}: {
+  title: string;
+  detail: string;
+  en: { title: string; detail: string } | undefined;
+}) {
   return (
     <li className="border-t border-border/70 pt-3 first:border-t-0 first:pt-0">
       <p className="text-[14px] font-semibold text-foreground">{title}</p>
       <p className="mt-1 text-[13.5px] leading-6 text-muted-foreground">
         {detail}
       </p>
+      {en && <En text={en.title} />}
+      {en && <En text={en.detail} />}
     </li>
   );
 }
@@ -97,27 +123,46 @@ export function ProposalView({
   strategy,
   content,
   plan,
+  competitors,
+  translation,
   groupStatus,
   onRetry,
   onExport,
 }: Props) {
+  const trS = translation.strategy;
+  const trC = translation.content;
+  const trP = translation.plan;
+  const trK = translation.competitors;
+
   // 数据为空的「成功」按失败处理,避免渲染空白章节
   const groupOf = (g: GroupName): GroupStatus => {
     const s = groupStatus[g];
     if (s === "error") return "error";
     if (s === "done") {
-      const data = g === "strategy" ? strategy : g === "content" ? content : plan;
-      return data ? "done" : "error";
+      if (g === "strategy") return strategy ? "done" : "error";
+      if (g === "content") return content ? "done" : "error";
+      if (g === "plan") return plan ? "done" : "error";
+      if (g === "competitors") return competitors ? "done" : "error";
+      return trS && trC && trP && trK ? "done" : "error";
     }
     return "loading";
   };
 
-  const failedGroups = (["strategy", "content", "plan"] as GroupName[]).filter(
-    (g) => groupOf(g) === "error",
-  );
-  const anyLoading = (["strategy", "content", "plan"] as GroupName[]).some(
-    (g) => groupOf(g) === "loading",
-  );
+  const groups: GroupName[] = [
+    "strategy",
+    "content",
+    "plan",
+    "competitors",
+    "translation",
+  ];
+  const failedGroups = groups.filter((g) => groupOf(g) === "error");
+  const anyLoading = groups.some((g) => groupOf(g) === "loading");
+
+  const baseDone =
+    strategy && content && plan && competitors && !anyLoading;
+  const translationDone =
+    brief.language !== "en" || Boolean(trS && trC && trP && trK);
+  const exportReady = Boolean(baseDone && translationDone);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -129,6 +174,11 @@ export function ProposalView({
         <h1 className="mt-3 font-display text-3xl font-bold text-foreground md:text-4xl">
           {brief.brand} · 整合传播提案
         </h1>
+        {brief.language === "en" && (
+          <p className="mt-1 font-display text-lg text-muted-foreground italic">
+            {brief.brand} · Integrated Campaign Proposal
+          </p>
+        )}
         <p className="mt-3 text-[13px] text-muted-foreground">
           {brief.industry} · 预算 {brief.budget} · 周期 {brief.duration}
         </p>
@@ -139,7 +189,11 @@ export function ProposalView({
         <p className="text-[11px] font-medium tracking-[0.25em] text-brand">
           CLIENT INFORMATION · 客户信息
         </p>
-        <div className="mt-5 grid gap-6 sm:grid-cols-3">
+        <div
+          className={`mt-5 grid gap-6 sm:grid-cols-2 ${
+            brief.totalBudget ? "lg:grid-cols-4" : "lg:grid-cols-3"
+          }`}
+        >
           <div>
             <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
               客户名称
@@ -156,6 +210,16 @@ export function ProposalView({
               {brief.budget}
             </p>
           </div>
+          {brief.totalBudget && (
+            <div>
+              <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+                总预算
+              </p>
+              <p className="mt-1.5 font-display text-[16px] font-semibold text-foreground">
+                {brief.totalBudget}
+              </p>
+            </div>
+          )}
           <div>
             <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
               目标城市
@@ -233,6 +297,7 @@ export function ProposalView({
                   <p className="text-[15px] leading-7 text-foreground">
                     {strategy.audienceProfile}
                   </p>
+                  <En text={trS?.audienceProfile} />
                 </div>
                 <div className="grid gap-8 sm:grid-cols-2">
                   <div>
@@ -240,8 +305,8 @@ export function ProposalView({
                       消费趋势
                     </p>
                     <ul className="space-y-3">
-                      {strategy.trends.map((t) => (
-                        <Bullet key={t.title} {...t} />
+                      {strategy.trends.map((t, i) => (
+                        <Bullet key={t.title} {...t} en={trS?.trends?.[i]} />
                       ))}
                     </ul>
                   </div>
@@ -250,8 +315,8 @@ export function ProposalView({
                       竞争格局
                     </p>
                     <ul className="space-y-3">
-                      {strategy.competition.map((c) => (
-                        <Bullet key={c.title} {...c} />
+                      {strategy.competition.map((c, i) => (
+                        <Bullet key={c.title} {...c} en={trS?.competition?.[i]} />
                       ))}
                     </ul>
                   </div>
@@ -275,19 +340,25 @@ export function ProposalView({
                   <p className="mt-2 font-display text-lg leading-8 font-semibold text-foreground">
                     {strategy.keyInsight}
                   </p>
+                  <En text={trS?.keyInsight} />
                 </div>
                 <div>
                   <p className="font-display text-[26px] font-bold text-foreground">
                     {strategy.bigIdeaTitle}
                   </p>
+                  <En text={trS?.bigIdeaTitle} />
                   <p className="mt-2 text-[14.5px] leading-7 text-muted-foreground">
                     {strategy.bigIdeaDescription}
                   </p>
+                  <En text={trS?.bigIdeaDescription} />
                 </div>
                 <p className="bg-secondary px-5 py-4 text-[13.5px] leading-6 text-muted-foreground">
                   <span className="font-medium text-foreground">策略推导:</span>
                   {strategy.strategyLogic}
                 </p>
+                <div className="-mt-4 px-5">
+                  <En text={trS?.strategyLogic} />
+                </div>
               </div>
             )}
           </SectionShell>
@@ -303,6 +374,7 @@ export function ProposalView({
                 <p className="font-display text-2xl font-bold text-foreground">
                   「{strategy.campaignTheme}」
                 </p>
+                <En text={trS?.campaignTheme} />
                 <ol className="mt-6 space-y-0">
                   {strategy.slogans.map((s, i) => (
                     <li
@@ -312,7 +384,10 @@ export function ProposalView({
                       <span className="font-display text-sm italic text-brand">
                         0{i + 1}
                       </span>
-                      <span className="text-[15px] text-foreground">{s}</span>
+                      <span>
+                        <span className="text-[15px] text-foreground">{s}</span>
+                        <En text={trS?.slogans?.[i]} />
+                      </span>
                     </li>
                   ))}
                 </ol>
@@ -328,7 +403,7 @@ export function ProposalView({
           >
             {content && (
               <div className="space-y-9">
-                {content.platforms.map((p) => (
+                {content.platforms.map((p, pi) => (
                   <div key={p.platform}>
                     <div className="flex flex-wrap items-baseline gap-x-3">
                       <h3 className="text-[16px] font-bold text-foreground">
@@ -338,8 +413,13 @@ export function ProposalView({
                         {p.positioning}
                       </span>
                     </div>
+                    {trC?.platforms?.[pi] && (
+                      <p className="mt-0.5 text-[12px] text-muted-foreground italic">
+                        {p.platform} · {trC.platforms[pi].positioning}
+                      </p>
+                    )}
                     <div className="mt-3 space-y-3">
-                      {p.items.map((it) => (
+                      {p.items.map((it, ii) => (
                         <div
                           key={it.title}
                           className="border-t border-border/70 pt-3 first:border-t-0 first:pt-0"
@@ -350,6 +430,12 @@ export function ProposalView({
                           <p className="mt-1 text-[13.5px] leading-6 text-muted-foreground">
                             {it.body}
                           </p>
+                          {trC?.platforms?.[pi]?.items?.[ii] && (
+                            <>
+                              <En text={trC.platforms[pi].items[ii].title} />
+                              <En text={trC.platforms[pi].items[ii].body} />
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -366,43 +452,92 @@ export function ProposalView({
             onRetry={() => onRetry("plan")}
           >
             {plan && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[13.5px]">
-                  <thead>
-                    <tr className="border-b-2 border-foreground text-[11px] tracking-[0.15em] text-muted-foreground">
-                      <th className="w-32 pb-2.5 pr-4 font-medium">阶段</th>
-                      <th className="w-56 pb-2.5 pr-4 font-medium">目标</th>
-                      <th className="pb-2.5 font-medium">关键动作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plan.phases.map((ph) => (
-                      <tr
-                        key={ph.name}
-                        className="border-b border-border align-top"
-                      >
-                        <td className="py-4 pr-4">
-                          <p className="font-semibold text-foreground">
-                            {ph.name}
-                          </p>
-                          <p className="text-[12px] text-muted-foreground">
-                            {ph.weeks}
-                          </p>
-                        </td>
-                        <td className="py-4 pr-4 text-muted-foreground">
-                          {ph.goal}
-                        </td>
-                        <td className="py-4">
-                          <ul className="list-inside list-disc space-y-1 text-muted-foreground">
-                            {ph.actions.map((a) => (
-                              <li key={a}>{a}</li>
-                            ))}
-                          </ul>
-                        </td>
+              <div className="space-y-8">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[13.5px]">
+                    <thead>
+                      <tr className="border-b-2 border-foreground text-[11px] tracking-[0.15em] text-muted-foreground">
+                        <th className="w-32 pb-2.5 pr-4 font-medium">阶段</th>
+                        <th className="w-56 pb-2.5 pr-4 font-medium">目标</th>
+                        <th className="pb-2.5 font-medium">关键动作</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {plan.phases.map((ph, i) => (
+                        <tr
+                          key={ph.name}
+                          className="border-b border-border align-top"
+                        >
+                          <td className="py-4 pr-4">
+                            <p className="font-semibold text-foreground">
+                              {ph.name}
+                            </p>
+                            <En text={trP?.phases?.[i]?.name} />
+                            <p className="text-[12px] text-muted-foreground">
+                              {ph.weeks}
+                            </p>
+                          </td>
+                          <td className="py-4 pr-4 text-muted-foreground">
+                            {ph.goal}
+                            <En text={trP?.phases?.[i]?.goal} />
+                          </td>
+                          <td className="py-4">
+                            <ul className="list-inside list-disc space-y-1 text-muted-foreground">
+                              {ph.actions.map((a, ai) => (
+                                <li key={a}>
+                                  {a}
+                                  <En text={trP?.phases?.[i]?.actions?.[ai]} />
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 预算分配 */}
+                {plan.budgetAllocation.length > 0 && (
+                  <div>
+                    <p className="mb-3 text-[11px] font-medium tracking-[0.2em] text-muted-foreground">
+                      预算分配{brief.totalBudget ? ` · 总预算 ${brief.totalBudget}` : ""}
+                    </p>
+                    <table className="w-full text-left text-[13.5px]">
+                      <thead>
+                        <tr className="border-b-2 border-foreground text-[11px] tracking-[0.15em] text-muted-foreground">
+                          <th className="w-28 pb-2.5 pr-4 font-medium">项目</th>
+                          <th className="w-20 pb-2.5 pr-4 font-medium">占比</th>
+                          <th className="w-36 pb-2.5 pr-4 font-medium">金额估算</th>
+                          <th className="pb-2.5 font-medium">分配理由</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {plan.budgetAllocation.map((b, i) => (
+                          <tr
+                            key={b.item}
+                            className="border-b border-border align-top"
+                          >
+                            <td className="py-3.5 pr-4 font-semibold text-foreground">
+                              {b.item}
+                              <En text={trP?.budgetAllocation?.[i]?.item} />
+                            </td>
+                            <td className="py-3.5 pr-4 text-muted-foreground">
+                              {b.percent}
+                            </td>
+                            <td className="py-3.5 pr-4 text-muted-foreground">
+                              {b.amount}
+                            </td>
+                            <td className="py-3.5 text-muted-foreground">
+                              {b.rationale}
+                              <En text={trP?.budgetAllocation?.[i]?.rationale} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </SectionShell>
@@ -423,16 +558,19 @@ export function ProposalView({
                   </tr>
                 </thead>
                 <tbody>
-                  {plan.kpis.map((k) => (
+                  {plan.kpis.map((k, i) => (
                     <tr key={k.metric} className="border-b border-border">
                       <td className="py-3.5 pr-4 font-semibold text-foreground">
                         {k.layer}
+                        <En text={trP?.kpis?.[i]?.layer} />
                       </td>
                       <td className="py-3.5 pr-4 text-muted-foreground">
                         {k.metric}
+                        <En text={trP?.kpis?.[i]?.metric} />
                       </td>
                       <td className="py-3.5 text-muted-foreground">
                         {k.target}
+                        <En text={trP?.kpis?.[i]?.target} />
                       </td>
                     </tr>
                   ))}
@@ -441,14 +579,78 @@ export function ProposalView({
             )}
           </SectionShell>
 
+          <SectionShell
+            num="07"
+            title="竞品分析"
+            status={groupOf("competitors")}
+            onRetry={() => onRetry("competitors")}
+          >
+            {competitors && (
+              <div className="space-y-8">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {competitors.competitors.map((c, i) => (
+                    <div
+                      key={c.name}
+                      className="border border-border bg-muted/30 p-5"
+                    >
+                      <p className="font-display text-[15px] font-bold text-foreground">
+                        {c.name}
+                      </p>
+                      <div className="mt-3">
+                        <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+                          优势
+                        </p>
+                        <ul className="mt-1.5 list-inside list-disc space-y-1 text-[13px] text-foreground">
+                          {c.strengths.map((s, si) => (
+                            <li key={s}>
+                              {s}
+                              <En text={trK?.competitors?.[i]?.strengths?.[si]} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+                          劣势
+                        </p>
+                        <ul className="mt-1.5 list-inside list-disc space-y-1 text-[13px] text-muted-foreground">
+                          {c.weaknesses.map((w, wi) => (
+                            <li key={w}>
+                              {w}
+                              <En text={trK?.competitors?.[i]?.weaknesses?.[wi]} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+                          用户画像
+                        </p>
+                        <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+                          {c.persona}
+                        </p>
+                        <En text={trK?.competitors?.[i]?.persona} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-l-2 border-brand pl-5">
+                  <p className="text-[11px] font-medium tracking-[0.25em] text-brand">
+                    差异化定位 · DIFFERENTIATION
+                  </p>
+                  <p className="mt-2 text-[15px] leading-7 text-foreground">
+                    {competitors.differentiation}
+                  </p>
+                  <En text={trK?.differentiation} />
+                </div>
+              </div>
+            )}
+          </SectionShell>
+
           <div className="pt-8">
             <Button
               onClick={onExport}
-              disabled={
-                groupOf("strategy") !== "done" ||
-                groupOf("content") !== "done" ||
-                groupOf("plan") !== "done"
-              }
+              disabled={!exportReady}
               className="h-11 rounded-none bg-foreground px-8 text-[15px] text-background hover:bg-foreground/85"
             >
               导出提案文档

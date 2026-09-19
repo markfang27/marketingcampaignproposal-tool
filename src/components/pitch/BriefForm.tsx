@@ -17,6 +17,9 @@ const EMPTY_BRIEF: BriefInput = {
   objective: "",
   budget: "",
   duration: "",
+  competitors: "",
+  totalBudget: "",
+  language: "zh",
 };
 
 export const SAMPLE_BRIEF: BriefInput = CASE_LIBRARY[0]!.brief;
@@ -59,6 +62,29 @@ const FIELDS: {
   },
   { name: "budget", label: "预算量级", placeholder: "例如:约 200 万元" },
   { name: "duration", label: "投放周期", placeholder: "例如:8 周" },
+  {
+    name: "competitors",
+    label: "主要竞品(可选)",
+    placeholder: "例如:元气森林、农夫山泉汽茶,留空则由 AI 选取代表竞品",
+  },
+  {
+    name: "totalBudget",
+    label: "总预算(可选)",
+    placeholder: "例如:200 万元,用于自动拆分预算分配",
+  },
+];
+
+const LANGUAGES: {
+  value: BriefInput["language"];
+  label: string;
+  desc: string;
+}[] = [
+  { value: "zh", label: "中文提案", desc: "全中文提案书" },
+  {
+    value: "en",
+    label: "中英双语提案",
+    desc: "生成后自动翻译为英文,中英对照,适合跨国客户",
+  },
 ];
 
 export function BriefForm({
@@ -95,9 +121,9 @@ export function BriefForm({
           可提案的传播方案
         </h1>
         <p className="mt-6 text-[15px] leading-7 text-muted-foreground">
-          填写客户 Brief,AI 将按代理公司提案结构,产出市场洞察、核心策略、
-          传播主题、多平台内容矩阵、执行排期与 KPI 框架六个章节,
-          并支持一键导出为可打印的提案文档。
+          填写客户 Brief, AI 将按代理公司提案结构,产出市场洞察、核心策略、
+          传播主题、多平台内容矩阵、执行排期、预算分配、KPI 框架与竞品分析
+          七个章节,并支持一键导出为可打印的提案文档。
         </p>
         <div className="mt-8 border-l-2 border-brand/40 pl-4">
           <p className="text-sm leading-6 text-muted-foreground">
@@ -225,9 +251,38 @@ export function BriefForm({
           ))}
         </div>
 
-        <p className="text-[12.5px] leading-5 text-muted-foreground">
-          内容矩阵将按平台原生风格输出:小红书种草风、抖音短平快风、B站深度内容风、微博话题互动风,无需单独选择。
-        </p>
+
+        <div>
+          <Label className="text-[13px] font-medium text-foreground">
+            提案语言
+          </Label>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {LANGUAGES.map((l) => {
+              const selected = brief.language === l.value;
+              return (
+                <button
+                  key={l.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setBrief((b) => ({ ...b, language: l.value }))}
+                  className={`border px-4 py-3 text-left transition-colors ${
+                    selected
+                      ? "border-brand bg-brand/5"
+                      : "border-border bg-background hover:border-brand/50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
+                    {selected && <Check className="h-3.5 w-3.5 text-brand" />}
+                    {l.label}
+                  </span>
+                  <span className="mt-0.5 block text-[11.5px] leading-4 text-muted-foreground">
+                    {l.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="flex items-center gap-4 pt-2">
           <Button
