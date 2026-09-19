@@ -9,6 +9,9 @@ import {
   PROPOSAL_STYLES,
   StrategyOutputSchema,
   type BriefInput,
+  type ContentResult,
+  type PlanResult,
+  type StrategyResult,
 } from "./proposal-schema";
 
 const MODEL_ID = "openai/gpt-6-astra";
@@ -63,15 +66,7 @@ const PROVIDER_OPTIONS = {
 // 空响应守卫:AI 返回内容为空或缺关键字段时抛错,触发上层重试而不是渲染空白
 const NON_EMPTY = "AI 返回内容为空,请重试";
 
-function assertStrategy(o: {
-  audienceProfile: string;
-  trends: unknown[];
-  competition: unknown[];
-  keyInsight: string;
-  bigIdeaTitle: string;
-  campaignTheme: string;
-  slogans: unknown[];
-}) {
+function assertStrategy(o: StrategyResult): StrategyResult {
   if (
     !o ||
     !o.audienceProfile?.trim() ||
@@ -87,9 +82,7 @@ function assertStrategy(o: {
   return o;
 }
 
-function assertContent(o: {
-  platforms: { items: unknown[] }[];
-}) {
+function assertContent(o: ContentResult): ContentResult {
   if (
     !o ||
     !o.platforms?.length ||
@@ -100,7 +93,7 @@ function assertContent(o: {
   return o;
 }
 
-function assertPlan(o: { phases: unknown[]; kpis: unknown[] }) {
+function assertPlan(o: PlanResult): PlanResult {
   if (!o || !o.phases?.length || !o.kpis?.length) {
     throw new Error(NON_EMPTY);
   }
