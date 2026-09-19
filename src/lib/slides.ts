@@ -2,6 +2,7 @@ import type {
   Bilingual,
   BriefInput,
   CompetitorResult,
+  CompetitorSource,
   ContentResult,
   PlanResult,
   StrategyResult,
@@ -37,6 +38,7 @@ export interface DeckInput {
   content: ContentResult;
   plan: PlanResult;
   competitors: CompetitorResult;
+  sources?: CompetitorSource[];
   translation: Bilingual;
 }
 
@@ -47,6 +49,7 @@ export function buildDeck({
   content,
   plan,
   competitors,
+  sources = [],
   translation,
 }: DeckInput): Slide[] {
   const bi = brief.language === "en";
