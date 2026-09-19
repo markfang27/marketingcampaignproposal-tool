@@ -20,6 +20,7 @@ const EMPTY_BRIEF: BriefInput = {
   competitors: "",
   totalBudget: "",
   language: "zh",
+    research: "web",
 };
 
 export const SAMPLE_BRIEF: BriefInput = CASE_LIBRARY[0]!.brief;
