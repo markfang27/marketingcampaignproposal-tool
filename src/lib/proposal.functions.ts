@@ -3,6 +3,7 @@ import { Output, NoObjectGeneratedError, streamText } from "ai";
 import { z } from "zod";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createLovableAiGatewayRunIdFetch } from "./ai-gateway.server";
+import { webSearch } from "./firecrawl.server";
 import {
   BriefInputSchema,
   CompetitorOutputSchema,
@@ -11,6 +12,7 @@ import {
   StrategyOutputSchema,
   type BriefInput,
   type CompetitorResult,
+  type CompetitorSource,
   type ContentResult,
   type PlanResult,
   type StrategyResult,
@@ -276,6 +278,106 @@ export const translateGroup = createServerFn({ method: "POST" })
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 翻译返回格式异常,请重试本模块");
+      }
+      throw error;
+    }
+  });
+
+// ---------- 竞品品牌搜索:从公开网页找候选品牌 ----------
+const BRAND_QUERY = z.object({ query: z.string(), industry: z.string() });
+
+export const searchBrands = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => BRAND_QUERY.parse(input))
+  .handler(async ({ data }) => {
+    const q = data.query.trim();
+    if (!q) return [] as { name: string; note: string; url: string }[];
+    const results = await webSearch(
+      `${q} ${data.industry} 品牌 竞品 对比`,
+      6,
+      false,
+    );
+    return results.map((r) => ({
+      name: r.title.replace(/[|｜\-–—].*$/, "").trim().slice(0, 40) || r.url,
+      note: r.description.slice(0, 80),
+      url: r.url,
+    }));
+  });
+
+// ---------- 竞品分析:先抓公开资料,再由 AI 基于原文归纳 ----------
+function splitBrands(raw: string) {
+  return raw
+    .split(/[,,、;;\/|\s]+/)
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+export const researchCompetitors = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => BriefInputSchema.parse(input))
+  .handler(async ({ data }) => {
+    const brands = splitBrands(data.competitors);
+    const queries = brands.length
+      ? brands
+      : [`${data.industry} ${data.product} 头部品牌 竞品分析`];
+
+    const sources: CompetitorSource[] = [];
+    const evidence: string[] = [];
+
+    for (const brand of queries) {
+      try {
+        const hits = await webSearch(
+          brands.length
+            ? `${brand} 品牌 产品 用户评价 优势 劣势 ${data.industry}`
+            : brand,
+          3,
+          true,
+        );
+        hits.forEach((h) => {
+          sources.push({ brand, title: h.title, url: h.url });
+          evidence.push(
+            `【${brand}】来源:${h.title} (${h.url})\n${h.markdown || h.description}`,
+          );
+        });
+      } catch (error) {
+        console.error(`[research] ${brand} 检索失败`, error);
+      }
+    }
+
+    if (!evidence.length) {
+      throw new Error("未检索到公开资料,请改用 AI 推断或稍后重试");
+    }
+
+    const model = buildModel();
+    const result = streamText({
+      model,
+      system: SYSTEM_PROMPT,
+      prompt: `${briefPrompt(data)}
+
+以下是从公开网页检索到的竞品资料原文(可能含噪音,请只采信与品牌、产品、渠道、用户评价相关的事实):
+
+${evidence.join("\n\n---\n\n").slice(0, 24000)}
+
+请严格基于上述公开资料撰写竞品分析,不要编造资料中没有的事实;资料没覆盖的判断可以做行业常识性推断,但要保守。
+${
+  brands.length
+    ? `重点分析这些竞品:${brands.join("、")}。`
+    : "从资料中选出 2-3 个最具代表性的竞品品牌。"
+}
+每个竞品输出:
+1. 品牌名;
+2. 优势 2-3 条(每条 25 字以内,尽量引用资料中的具体产品、渠道或口碑事实);
+3. 劣势 2-3 条(每条 25 字以内,是我们可攻击的薄弱点);
+4. 用户画像(60 字以内)。
+最后输出我方品牌的差异化定位:80 字以内,承接 Brief 的核心诉求。`,
+      output: Output.object({ schema: CompetitorOutputSchema }),
+      providerOptions: PROVIDER_OPTIONS,
+    });
+
+    try {
+      return { data: assertCompetitors(await result.output), sources };
+    } catch (error) {
+      if (NoObjectGeneratedError.isInstance(error)) {
+        throw new Error("AI 返回内容格式异常,请重试本模块");
       }
       throw error;
     }
