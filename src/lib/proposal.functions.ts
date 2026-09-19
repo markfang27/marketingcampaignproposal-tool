@@ -6,6 +6,7 @@ import {
   BriefInputSchema,
   ContentOutputSchema,
   PlanOutputSchema,
+  PROPOSAL_STYLES,
   StrategyOutputSchema,
   type BriefInput,
 } from "./proposal-schema";
@@ -44,6 +45,8 @@ function briefPrompt(b: BriefInput) {
     `营销诉求:${b.objective}`,
     `预算量级:${b.budget}`,
     `投放周期:${b.duration}`,
+    `内容主风格:${PROPOSAL_STYLES[b.style].label}`,
+    `风格执行要求:${PROPOSAL_STYLES[b.style].instruction}`,
   ].join("\n");
 }
 
@@ -66,7 +69,7 @@ export const generateStrategy = createServerFn({ method: "POST" })
       system: SYSTEM_PROMPT,
       prompt: `${briefPrompt(data)}
 
-请输出提案的第一部分(市场洞察、核心策略与传播主题):
+请输出提案的第一部分(市场洞察、核心策略与传播主题)。所选风格必须影响洞察切口、创意机制、传播节奏与表达方式，而不只是措辞变化:
 1. 目标人群画像:一段 100 字以内的具体描述;
 2. 消费趋势要点:3-5 条,每条含小标题和 40 字以内说明;
 3. 竞争格局要点:3-5 条,每条含小标题和 40 字以内说明;
@@ -97,7 +100,7 @@ export const generateContent = createServerFn({ method: "POST" })
       system: SYSTEM_PROMPT,
       prompt: `${briefPrompt(data)}
 
-请输出提案的多平台内容矩阵,覆盖 4 个平台:小红书、抖音、微信(公众号)、微博。每个平台给出:1 句平台打法定位(30 字以内)+ 3 条具体内容选题,每条含标题和 60 字以内内容要点。内容标题要有平台原生感(如小红书 emoji 标题、抖音钩子开头)。`,
+请输出提案的多平台内容矩阵,覆盖 4 个平台:小红书、抖音、微信(公众号)、微博。所选主风格是整场 campaign 的内容母体：主阵地应获得最鲜明、最完整的表达，其他平台则将同一创意机制转译为各自原生形式。每个平台给出:1 句平台打法定位(30 字以内)+ 3 条具体内容选题,每条含标题和 60 字以内内容要点。内容标题要有平台原生感(如小红书 emoji 标题、抖音钩子开头)。`,
       output: Output.object({ schema: ContentOutputSchema }),
       providerOptions: PROVIDER_OPTIONS,
     });
@@ -120,7 +123,7 @@ export const generatePlan = createServerFn({ method: "POST" })
       system: SYSTEM_PROMPT,
       prompt: `${briefPrompt(data)}
 
-请输出提案的执行排期与 KPI 框架:
+请输出提案的执行排期与 KPI 框架。排期动作与指标权重必须体现所选主风格对应平台的内容生产方式和核心行为指标:
 1. 执行排期:按投放周期(${data.duration})划分为预热期、引爆期、延续期 3 个阶段,每阶段含名称、覆盖时间(如"第 1-2 周")、阶段目标(30 字以内)、4-6 条具体动作;
 2. KPI 框架:按曝光层、互动层、转化层各给 2 条指标,每条含指标名和参考目标值(目标值要匹配预算量级 ${data.budget})。`,
       output: Output.object({ schema: PlanOutputSchema }),
