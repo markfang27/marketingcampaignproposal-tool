@@ -135,6 +135,3 @@ export const generatePlan = createServerFn({ method: "POST" })
       throw error;
     }
   });
-
-// keep tree-shaking honest: helper kept for future per-brief caching keys
-void briefFromStrategy;
