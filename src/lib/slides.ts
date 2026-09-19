@@ -260,13 +260,13 @@ export function buildDeck({
 
   if (sources.length) {
     slides.push({
-      kind: "bullets",
-      eyebrow: "07",
+      kind: "content",
+      num: "07",
       title: "资料来源",
-      titleEn: "Sources",
+      titleEn: bi ? "Sources" : undefined,
       bullets: sources.map((s) => ({
-        label: s.brand,
-        text: `${s.title || s.url} — ${s.url}`,
+        title: s.brand,
+        body: `${s.title || s.url} — ${s.url}`,
       })),
     });
   }
