@@ -1,13 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { createFileRoute } from "@tanstack/react-router";
-import { FileText, Loader2, Menu, PanelLeftClose, PanelLeftOpen, PenLine, Plus, X } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  FileText,
+  Loader2,
+  LogIn,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PenLine,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BriefForm } from "@/components/pitch/BriefForm";
 import { ProposalView } from "@/components/pitch/ProposalView";
+import { supabase } from "@/integrations/supabase/client";
 import { buildExportHtml, openExport } from "@/lib/export-html";
 import { buildSlidesHtml, openSlides } from "@/lib/export-slides-html";
+import {
+  deleteProposal,
+  getProposal,
+  listProposals,
+  saveProposal,
+  type ProposalSummary,
+} from "@/lib/library.functions";
 import {
   generateCompetitors,
   researchCompetitors,
@@ -59,6 +79,14 @@ const IDLE = {
   translation: "idle",
 } as Record<GroupName, GroupStatus | "idle">;
 
+const DONE = {
+  strategy: "done",
+  content: "done",
+  plan: "done",
+  competitors: "done",
+  translation: "done",
+} as Record<GroupName, GroupStatus | "idle">;
+
 const TRANSLATE_ORDER: TranslatableKind[] = [
   "strategy",
   "content",
@@ -66,24 +94,20 @@ const TRANSLATE_ORDER: TranslatableKind[] = [
   "competitors",
 ];
 
-interface ProposalRecord {
-  id: string;
-  brand: string;
-  industry: string;
-  createdAt: string;
-  brief: BriefInput;
-}
-
-const RECORD_KEY = "pitch-copilot-records";
-
 function Workbench() {
+  const navigate = useNavigate();
   const runStrategy = useServerFn(generateStrategy);
   const runContent = useServerFn(generateContent);
   const runPlan = useServerFn(generatePlan);
   const runCompetitors = useServerFn(generateCompetitors);
   const runResearch = useServerFn(researchCompetitors);
   const runTranslate = useServerFn(translateGroup);
+  const runListProposals = useServerFn(listProposals);
+  const runGetProposal = useServerFn(getProposal);
+  const runSaveProposal = useServerFn(saveProposal);
+  const runDeleteProposal = useServerFn(deleteProposal);
 
+  const [signedIn, setSignedIn] = useState(false);
   const [brief, setBrief] = useState<BriefInput | null>(null);
   const [strategy, setStrategy] = useState<StrategyResult | null>(null);
   const [content, setContent] = useState<ContentResult | null>(null);
@@ -92,7 +116,8 @@ function Workbench() {
   const [sources, setSources] = useState<CompetitorSource[]>([]);
   const [translation, setTranslation] = useState<Bilingual>({});
   const [pptxBusy, setPptxBusy] = useState(false);
-  const [records, setRecords] = useState<ProposalRecord[]>([]);
+  const [records, setRecords] = useState<ProposalSummary[]>([]);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [draftBrief, setDraftBrief] = useState<BriefInput | null>(null);
@@ -108,30 +133,31 @@ function Workbench() {
   }>({});
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(RECORD_KEY);
-      if (saved) setRecords(JSON.parse(saved) as ProposalRecord[]);
-    } catch {
-      setRecords([]);
-    }
+    void supabase.auth.getSession().then(({ data }) => {
+      setSignedIn(Boolean(data.session));
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(Boolean(session));
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
-  const remember = (b: BriefInput) => {
-    setRecords((current) => {
-      const next = [
-        {
-          id: `${Date.now()}`,
-          brand: b.brand,
-          industry: b.industry || "未分类",
-          createdAt: new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(new Date()),
-          brief: b,
-        },
-        ...current.filter((item) => item.brand !== b.brand),
-      ].slice(0, 12);
-      window.localStorage.setItem(RECORD_KEY, JSON.stringify(next));
-      return next;
-    });
+  const refreshRecords = async () => {
+    try {
+      setRecords((await runListProposals()) ?? []);
+    } catch (error) {
+      console.error("list proposals failed", error);
+    }
   };
+
+  useEffect(() => {
+    if (!signedIn) {
+      setRecords([]);
+      return;
+    }
+    void refreshRecords();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn]);
 
   const callGroup = async (group: GroupName, b: BriefInput) => {
     if (group === "strategy") {
@@ -198,8 +224,27 @@ function Workbench() {
     setGroupStatus((s) => ({ ...s, [group]: "error" }));
   };
 
+  const persist = async (b: BriefInput) => {
+    if (!signedIn) return;
+    try {
+      await runSaveProposal({
+        data: {
+          brief: b,
+          strategy: resultsRef.current.strategy ?? null,
+          content: resultsRef.current.content ?? null,
+          plan: resultsRef.current.plan ?? null,
+          competitors: resultsRef.current.competitors ?? null,
+          sources,
+          translation,
+        },
+      });
+      await refreshRecords();
+    } catch (error) {
+      console.error("save proposal failed", error);
+    }
+  };
+
   const start = async (b: BriefInput) => {
-    remember(b);
     setBrief(b);
     setStrategy(null);
     setContent(null);
@@ -216,6 +261,7 @@ function Workbench() {
     if (b.language === "en") {
       await runGroup("translation", b);
     }
+    await persist(b);
   };
 
   const retry = async (group: GroupName) => {
@@ -234,6 +280,48 @@ function Workbench() {
     setGroupStatus({ ...IDLE });
     setDraftBrief(null);
     window.scrollTo({ top: 0 });
+  };
+
+  const openRecord = async (id: string) => {
+    setOpeningId(id);
+    try {
+      const saved = await runGetProposal({ data: { id } });
+      const cached: typeof resultsRef.current = {};
+      if (saved.strategy) cached.strategy = saved.strategy;
+      if (saved.content) cached.content = saved.content;
+      if (saved.plan) cached.plan = saved.plan;
+      if (saved.competitors) cached.competitors = saved.competitors;
+      resultsRef.current = cached;
+      setStrategy(saved.strategy);
+      setContent(saved.content);
+      setPlan(saved.plan);
+      setCompetitors(saved.competitors);
+      setSources(saved.sources);
+      setTranslation(saved.translation);
+      setBrief(saved.brief);
+      setGroupStatus({ ...DONE });
+      setMobileSidebar(false);
+      window.scrollTo({ top: 0 });
+    } catch (error) {
+      console.error("open proposal failed", error);
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+  const removeRecord = async (id: string) => {
+    try {
+      await runDeleteProposal({ data: { id } });
+      setRecords((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error("delete proposal failed", error);
+    }
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setRecords([]);
+    restart();
   };
 
   const deckInput = () =>
@@ -269,6 +357,62 @@ function Workbench() {
     ["strategy", "content", "plan", "competitors", "translation"] as GroupName[]
   ).some((g) => groupStatus[g] === "loading");
 
+  const recordList = (
+    <div className="mt-2 space-y-1">
+      {!signedIn ? (
+        <p className="px-2 py-4 text-xs leading-5 text-muted-foreground">
+          登录后，这里会保存你自己的提案记录，其他人看不到。
+        </p>
+      ) : records.length === 0 ? (
+        <p className="px-2 py-4 text-xs leading-5 text-muted-foreground">
+          生成的方案会出现在这里，点开就能再看一次或重新导出。
+        </p>
+      ) : (
+        records.map((record) => (
+          <div
+            key={record.id}
+            className="flex items-center gap-1 rounded-md px-1 hover:bg-sidebar-accent"
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto min-w-0 flex-1 justify-start px-1 py-2.5 text-left hover:bg-transparent"
+              onClick={() => void openRecord(record.id)}
+            >
+              {openingId === record.id ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <FileText className="h-4 w-4 text-primary" />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold text-foreground">
+                  {record.brand}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] font-normal text-muted-foreground">
+                  {new Intl.DateTimeFormat("zh-CN", {
+                    month: "2-digit",
+                    day: "2-digit",
+                  }).format(new Date(record.createdAt))}{" "}
+                  · {record.industry}
+                </span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              aria-label={`删除 ${record.brand} 的提案`}
+              onClick={() => void removeRecord(record.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -302,6 +446,17 @@ function Workbench() {
                 重新开始
               </Button>
             )}
+            {signedIn ? (
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-[13px]" onClick={() => void signOut()}>
+                <LogOut className="h-3.5 w-3.5" />
+                退出
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[13px]" onClick={() => void navigate({ to: "/auth" })}>
+                <LogIn className="h-3.5 w-3.5" />
+                登录
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -327,25 +482,7 @@ function Workbench() {
             {sidebarOpen && (
               <div className="mt-6">
                 <p className="px-2 text-[11px] font-semibold text-muted-foreground">最近生成</p>
-                <div className="mt-2 space-y-1">
-                  {records.length === 0 ? (
-                    <p className="px-2 py-4 text-xs leading-5 text-muted-foreground">生成的方案会出现在这里，方便再次使用同一份 Brief。</p>
-                  ) : records.map((record) => (
-                    <Button
-                      key={record.id}
-                      type="button"
-                      variant="ghost"
-                      className="h-auto w-full justify-start px-2 py-2.5 text-left"
-                      onClick={() => { restart(); setDraftBrief(record.brief); }}
-                    >
-                      <FileText className="h-4 w-4 text-primary" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold text-foreground">{record.brand}</span>
-                        <span className="mt-0.5 block truncate text-[10px] font-normal text-muted-foreground">{record.createdAt} · {record.industry}</span>
-                      </span>
-                    </Button>
-                  ))}
-                </div>
+                {recordList}
               </div>
             )}
           </div>
@@ -353,27 +490,26 @@ function Workbench() {
 
         {mobileSidebar && (
           <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setMobileSidebar(false)}>
-            <aside className="h-full w-[min(82vw,300px)] bg-sidebar p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <aside className="h-full w-[min(82vw,300px)] overflow-y-auto bg-sidebar p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <p className="font-display text-sm font-semibold">我的方案</p>
                 <Button variant="ghost" size="icon" onClick={() => setMobileSidebar(false)} aria-label="关闭方案记录"><X /></Button>
               </div>
               <Button type="button" variant="outline" className="mt-4 w-full justify-start" onClick={() => { restart(); setMobileSidebar(false); }}><Plus />新建提案</Button>
-              <div className="mt-5 space-y-1">
-                {records.map((record) => (
-                  <Button key={record.id} type="button" variant="ghost" className="h-auto w-full justify-start px-2 py-3 text-left" onClick={() => { restart(); setDraftBrief(record.brief); setMobileSidebar(false); }}>
-                    <FileText className="text-primary" />
-                    <span className="min-w-0"><span className="block truncate text-xs font-semibold">{record.brand}</span><span className="block truncate text-[10px] text-muted-foreground">{record.createdAt} · {record.industry}</span></span>
-                  </Button>
-                ))}
-              </div>
+              {recordList}
             </aside>
           </div>
         )}
 
         <div className="min-w-0 flex-1">
           {brief === null ? (
-            <BriefForm key={draftBrief ? `${draftBrief.brand}-${draftBrief.objective}` : "new"} initialBrief={draftBrief} onSubmit={start} />
+            <BriefForm
+              key={draftBrief ? `${draftBrief.brand}-${draftBrief.objective}` : "new"}
+              initialBrief={draftBrief}
+              onSubmit={start}
+              signedIn={signedIn}
+              onSignIn={() => void navigate({ to: "/auth" })}
+            />
           ) : (
             <ProposalView
               brief={brief}

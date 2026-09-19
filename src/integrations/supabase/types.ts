@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      knowledge_files: {
+        Row: {
+          category: string
+          created_at: string
+          excerpt: string
+          filename: string
+          id: string
+          size_bytes: number
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          excerpt?: string
+          filename: string
+          id?: string
+          size_bytes?: number
+          summary?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          excerpt?: string
+          filename?: string
+          id?: string
+          size_bytes?: number
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      media_assets: {
+        Row: {
+          caption: string
+          created_at: string
+          filename: string
+          id: string
+          kind: string
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string
+          created_at?: string
+          filename: string
+          id?: string
+          kind?: string
+          size_bytes?: number
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          filename?: string
+          id?: string
+          kind?: string
+          size_bytes?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      proposals: {
+        Row: {
+          brand: string
+          brief: Json
+          competitors: Json | null
+          content: Json | null
+          created_at: string
+          id: string
+          industry: string
+          plan: Json | null
+          sources: Json
+          strategy: Json | null
+          translation: Json
+          user_id: string
+        }
+        Insert: {
+          brand: string
+          brief: Json
+          competitors?: Json | null
+          content?: Json | null
+          created_at?: string
+          id?: string
+          industry?: string
+          plan?: Json | null
+          sources?: Json
+          strategy?: Json | null
+          translation?: Json
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          brief?: Json
+          competitors?: Json | null
+          content?: Json | null
+          created_at?: string
+          id?: string
+          industry?: string
+          plan?: Json | null
+          sources?: Json
+          strategy?: Json | null
+          translation?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
