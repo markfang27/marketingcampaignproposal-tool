@@ -120,7 +120,7 @@ export function ProposalView({
         <p className="mt-3 text-[13px] text-muted-foreground">
           {brief.industry} · 预算 {brief.budget} · 周期 {brief.duration} · 风格{" "}
           <span className="font-medium text-brand">
-            {PROPOSAL_STYLES[brief.style].label}
+            {(PROPOSAL_STYLES[brief.style] ?? PROPOSAL_STYLES.xiaohongshu).label}
           </span>
         </p>
       </header>
