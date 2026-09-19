@@ -5,6 +5,7 @@ import {
   type Bilingual,
   type BriefInput,
   type CompetitorResult,
+  type CompetitorSource,
   type ContentResult,
   type GroupName,
   type GroupStatus,
@@ -20,6 +21,7 @@ interface Props {
   content: ContentResult | null;
   plan: PlanResult | null;
   competitors: CompetitorResult | null;
+  sources: CompetitorSource[];
   translation: Bilingual;
   groupStatus: Record<GroupName, GroupStatus | "idle">;
   onRetry: (group: GroupName) => void;
@@ -127,6 +129,7 @@ export function ProposalView({
   content,
   plan,
   competitors,
+  sources,
   translation,
   groupStatus,
   onRetry,

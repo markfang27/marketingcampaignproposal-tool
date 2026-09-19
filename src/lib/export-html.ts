@@ -22,6 +22,7 @@ export function buildExportHtml({
   content,
   plan,
   competitors,
+  sources = [],
   translation,
 }: {
   brief: BriefInput;
@@ -29,6 +30,7 @@ export function buildExportHtml({
   content: ContentResult;
   plan: PlanResult;
   competitors: CompetitorResult;
+  sources?: CompetitorSource[];
   translation: Bilingual;
 }): string {
   const today = new Date().toLocaleDateString("zh-CN", {
@@ -302,6 +304,16 @@ export function buildExportHtml({
     <div class="diff">
       <p class="label">差异化定位 · DIFFERENTIATION</p>
       <p>${esc(competitors.differentiation)}${en(enK?.differentiation)}</p>
+      ${
+        sources.length
+          ? `<div class="sources"><p class="sources-title">资料来源 · SOURCES</p><ul>${sources
+              .map(
+                (s) =>
+                  `<li>${esc(s.brand)} · ${esc(s.title || s.url)}<br><span>${esc(s.url)}</span></li>`,
+              )
+              .join("")}</ul></div>`
+          : ""
+      }
     </div>
   </section>
 
