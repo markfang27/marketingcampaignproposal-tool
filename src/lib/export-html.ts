@@ -2,6 +2,7 @@ import type {
   Bilingual,
   BriefInput,
   CompetitorResult,
+  CompetitorSource,
   ContentResult,
   PlanResult,
   StrategyResult,
@@ -22,6 +23,7 @@ export function buildExportHtml({
   content,
   plan,
   competitors,
+  sources = [],
   translation,
 }: {
   brief: BriefInput;
@@ -29,6 +31,7 @@ export function buildExportHtml({
   content: ContentResult;
   plan: PlanResult;
   competitors: CompetitorResult;
+  sources?: CompetitorSource[];
   translation: Bilingual;
 }): string {
   const today = new Date().toLocaleDateString("zh-CN", {
@@ -209,6 +212,11 @@ export function buildExportHtml({
   .comp-card .pros li { color: #2b2620; }
   .comp-card .cons li { color: #5d564b; }
   .comp-persona { font-size: 13px; color: #5d564b; margin-top: 4px; }
+    .sources{margin-top:18px;border-top:1px solid #e3ded6;padding-top:10px}
+    .sources-title{font-size:9pt;letter-spacing:.2em;color:#6b6b6b;margin:0 0 6px}
+    .sources ul{margin:0;padding-left:16px}
+    .sources li{font-size:9.5pt;line-height:1.6;color:#333;margin-bottom:4px}
+    .sources li span{color:#8a8a8a;font-size:8.5pt;word-break:break-all}
   .diff { border-left: 3px solid #b0430f; padding: 4px 0 4px 20px; margin-top: 22px; }
   .diff .label { font-size: 11px; letter-spacing: .25em; color: #b0430f; font-weight: 500; }
   .diff p { font-size: 14.5px; margin-top: 6px; }
@@ -302,6 +310,16 @@ export function buildExportHtml({
     <div class="diff">
       <p class="label">差异化定位 · DIFFERENTIATION</p>
       <p>${esc(competitors.differentiation)}${en(enK?.differentiation)}</p>
+      ${
+        sources.length
+          ? `<div class="sources"><p class="sources-title">资料来源 · SOURCES</p><ul>${sources
+              .map(
+                (s) =>
+                  `<li>${esc(s.brand)} · ${esc(s.title || s.url)}<br><span>${esc(s.url)}</span></li>`,
+              )
+              .join("")}</ul></div>`
+          : ""
+      }
     </div>
   </section>
 

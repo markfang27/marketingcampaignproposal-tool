@@ -10,6 +10,7 @@ import { buildExportHtml, openExport } from "@/lib/export-html";
 import { buildSlidesHtml, openSlides } from "@/lib/export-slides-html";
 import {
   generateCompetitors,
+  researchCompetitors,
   generateContent,
   generatePlan,
   generateStrategy,
@@ -19,6 +20,7 @@ import type {
   Bilingual,
   BriefInput,
   CompetitorResult,
+  CompetitorSource,
   ContentResult,
   GroupName,
   GroupStatus,
@@ -69,6 +71,7 @@ function Workbench() {
   const runContent = useServerFn(generateContent);
   const runPlan = useServerFn(generatePlan);
   const runCompetitors = useServerFn(generateCompetitors);
+  const runResearch = useServerFn(researchCompetitors);
   const runTranslate = useServerFn(translateGroup);
 
   const [brief, setBrief] = useState<BriefInput | null>(null);
@@ -76,6 +79,7 @@ function Workbench() {
   const [content, setContent] = useState<ContentResult | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [competitors, setCompetitors] = useState<CompetitorResult | null>(null);
+  const [sources, setSources] = useState<CompetitorSource[]>([]);
   const [translation, setTranslation] = useState<Bilingual>({});
   const [pptxBusy, setPptxBusy] = useState(false);
   const [groupStatus, setGroupStatus] =
@@ -106,7 +110,19 @@ function Workbench() {
       resultsRef.current.plan = r;
       setPlan(r);
     } else if (group === "competitors") {
-      const r = await runCompetitors({ data: b });
+      let r: CompetitorResult | null = null;
+      if (b.research === "web") {
+        try {
+          const web = await runResearch({ data: b });
+          r = web?.data ?? null;
+          setSources(web?.sources ?? []);
+        } catch (error) {
+          // 联网检索失败(无结果/额度/超时)时退回纯 AI 推断,保证提案不断档
+          console.error("[competitors] web research failed, fallback to AI", error);
+          setSources([]);
+        }
+      }
+      if (!r) r = await runCompetitors({ data: b });
       if (!r) throw new Error("AI 返回内容为空");
       resultsRef.current.competitors = r;
       setCompetitors(r);
@@ -148,6 +164,7 @@ function Workbench() {
     setContent(null);
     setPlan(null);
     setCompetitors(null);
+    setSources([]);
     setTranslation({});
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
@@ -170,6 +187,7 @@ function Workbench() {
     setContent(null);
     setPlan(null);
     setCompetitors(null);
+    setSources([]);
     setTranslation({});
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
@@ -178,7 +196,7 @@ function Workbench() {
 
   const deckInput = () =>
     brief && strategy && content && plan && competitors
-      ? { brief, strategy, content, plan, competitors, translation }
+      ? { brief, strategy, content, plan, competitors, sources, translation }
       : null;
 
   const exportProposal = () => {
@@ -252,6 +270,7 @@ function Workbench() {
           content={content}
           plan={plan}
           competitors={competitors}
+          sources={sources}
           translation={translation}
           groupStatus={groupStatus}
           onRetry={retry}

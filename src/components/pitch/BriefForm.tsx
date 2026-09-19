@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Loader2, Plus, Search, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { searchBrands } from "@/lib/proposal.functions";
 import { CASE_INDUSTRIES, CASE_LIBRARY } from "@/lib/case-library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,7 @@ const EMPTY_BRIEF: BriefInput = {
   competitors: "",
   totalBudget: "",
   language: "zh",
+    research: "web",
 };
 
 export const SAMPLE_BRIEF: BriefInput = CASE_LIBRARY[0]!.brief;
@@ -87,6 +90,23 @@ const LANGUAGES: {
   },
 ];
 
+const RESEARCH: {
+  value: BriefInput["research"];
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: "web",
+    label: "公开数据检索",
+    desc: "先抓取竞品官网与公开报道,AI 基于原文归纳,并列出资料来源",
+  },
+  {
+    value: "ai",
+    label: "AI 推断",
+    desc: "不联网,直接由 AI 依行业常识推断,速度更快",
+  },
+];
+
 export function BriefForm({
   onSubmit,
 }: {
@@ -95,6 +115,43 @@ export function BriefForm({
   const [brief, setBrief] = useState<BriefInput>(EMPTY_BRIEF);
   const [industry, setIndustry] = useState<string>(CASE_INDUSTRIES[0]!);
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
+  const [brandQuery, setBrandQuery] = useState("");
+  const [hits, setHits] = useState<
+    { name: string; note: string; url: string }[] | null
+  >(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const runSearchBrands = useServerFn(searchBrands);
+
+  const doSearch = async () => {
+    const q = brandQuery.trim();
+    if (!q) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const r = await runSearchBrands({
+        data: { query: q, industry: brief.industry },
+      });
+      setHits(r);
+    } catch (error) {
+      console.error("brand search failed", error);
+      setSearchError("搜索失败,请稍后重试或直接手动填写竞品名称。");
+      setHits(null);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const addCompetitor = (name: string) => {
+    setBrief((b) => {
+      const list = b.competitors
+        .split(/[,,、]+/)
+        .map((v) => v.trim())
+        .filter(Boolean);
+      if (list.includes(name)) return b;
+      return { ...b, competitors: [...list, name].join("、") };
+    });
+  };
 
   const set = (name: keyof BriefInput, value: string) => {
     setActiveCaseId(null);
@@ -251,6 +308,110 @@ export function BriefForm({
           ))}
         </div>
 
+
+        <div className="border border-dashed border-border bg-muted/30 p-4">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+            <Search className="h-3.5 w-3.5 text-brand" />
+            竞品品牌搜索
+          </p>
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+            搜索品牌名或品类,从公开网页找到候选竞品,点击加入上方「主要竞品」。
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Input
+              value={brandQuery}
+              placeholder="例如:无糖气泡水 / 元气森林"
+              onChange={(e) => setBrandQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void doSearch();
+                }
+              }}
+              className="h-9 border-0 border-b border-input bg-transparent px-0 text-[13px] shadow-none focus-visible:border-brand focus-visible:ring-0"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={searching || !brandQuery.trim()}
+              onClick={() => void doSearch()}
+              className="h-9 shrink-0 gap-1.5 rounded-none text-[13px]"
+            >
+              {searching ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Search className="h-3.5 w-3.5" />
+              )}
+              搜索
+            </Button>
+          </div>
+          {searchError && (
+            <p className="mt-2 text-[12px] text-destructive">{searchError}</p>
+          )}
+          {hits && hits.length === 0 && !searching && (
+            <p className="mt-2 text-[12px] text-muted-foreground">
+              没找到结果,换个关键词试试。
+            </p>
+          )}
+          {hits && hits.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {hits.map((h) => (
+                <li key={h.url}>
+                  <button
+                    type="button"
+                    onClick={() => addCompetitor(h.name)}
+                    className="flex w-full items-start gap-2 border border-border bg-background px-3 py-2 text-left transition-colors hover:border-brand/60"
+                  >
+                    <Plus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12.5px] font-medium text-foreground">
+                        {h.name}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                        {h.note || h.url}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-4">
+            <Label className="text-[12.5px] font-medium text-foreground">
+              竞品资料来源
+            </Label>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {RESEARCH.map((r) => {
+                const selected = brief.research === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() =>
+                      setBrief((b) => ({ ...b, research: r.value }))
+                    }
+                    className={`border px-3 py-2.5 text-left transition-colors ${
+                      selected
+                        ? "border-brand bg-brand/5"
+                        : "border-border bg-background hover:border-brand/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground">
+                      {selected && <Check className="h-3.5 w-3.5 text-brand" />}
+                      {r.label}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+                      {r.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         <div>
           <Label className="text-[13px] font-medium text-foreground">

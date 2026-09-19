@@ -2,6 +2,7 @@ import type {
   Bilingual,
   BriefInput,
   CompetitorResult,
+  CompetitorSource,
   ContentResult,
   PlanResult,
   StrategyResult,
@@ -37,6 +38,7 @@ export interface DeckInput {
   content: ContentResult;
   plan: PlanResult;
   competitors: CompetitorResult;
+  sources?: CompetitorSource[];
   translation: Bilingual;
 }
 
@@ -47,6 +49,7 @@ export function buildDeck({
   content,
   plan,
   competitors,
+  sources = [],
   translation,
 }: DeckInput): Slide[] {
   const bi = brief.language === "en";
@@ -254,6 +257,21 @@ export function buildDeck({
     lead: competitors.differentiation,
     leadEn: trK?.differentiation,
   });
+
+  if (sources.length) {
+    slides.push({
+      kind: "content",
+      num: "07",
+      title: "资料来源",
+      titleEn: bi ? "Sources" : undefined,
+      bullets: sources.map((s) => ({
+        title: s.brand,
+        body: `${s.title || s.url} — ${s.url}`,
+      })),
+    });
+  }
+
+
 
   // 结尾
   slides.push({
