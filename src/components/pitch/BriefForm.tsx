@@ -94,9 +94,10 @@ export function BriefForm({
         </p>
         <div className="mt-8 border-l-2 border-brand/40 pl-4">
           <p className="text-sm leading-6 text-muted-foreground">
-            没有现成 Brief?点击右侧
-            <span className="text-foreground">「填入示例 Brief」</span>,
-            用一个新锐气泡水品牌的真实场景直接体验完整流程。
+            没有现成 Brief?在右侧
+            <span className="text-foreground">「客户案例库」</span>
+            里选一个行业与品牌,系统会自动填入该品牌常见的真实需求,
+            直接体验完整提案流程。
           </p>
         </div>
       </div>
