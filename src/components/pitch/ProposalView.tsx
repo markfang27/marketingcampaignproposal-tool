@@ -138,6 +138,39 @@ export function ProposalView({
         </p>
       </header>
 
+      {/* 客户信息页 */}
+      <section className="border-b border-border py-8">
+        <p className="text-[11px] font-medium tracking-[0.25em] text-brand">
+          CLIENT INFORMATION · 客户信息
+        </p>
+        <div className="mt-5 grid gap-6 sm:grid-cols-3">
+          <div>
+            <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+              客户名称
+            </p>
+            <p className="mt-1.5 font-display text-[16px] font-semibold text-foreground">
+              {brief.clientName || brief.brand}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+              项目预算
+            </p>
+            <p className="mt-1.5 font-display text-[16px] font-semibold text-foreground">
+              {brief.budget}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] tracking-[0.15em] text-muted-foreground">
+              目标城市
+            </p>
+            <p className="mt-1.5 font-display text-[16px] font-semibold text-foreground">
+              {brief.city || "全国"}
+            </p>
+          </div>
+        </div>
+      </section>
+
       {failedGroups.length > 0 && !anyLoading && (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border border-destructive/40 bg-destructive/5 px-5 py-4">
           <p className="flex items-center gap-2 text-[13.5px] text-destructive">
