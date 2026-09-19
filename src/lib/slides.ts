@@ -8,9 +8,9 @@ import type {
 } from "./proposal-schema";
 
 export interface SlideBullet {
-  title?: string;
-  body?: string;
-  en?: string;
+  title?: string | undefined;
+  body?: string | undefined;
+  en?: string | undefined;
 }
 
 export interface SlideTable {
@@ -20,15 +20,15 @@ export interface SlideTable {
 
 export interface Slide {
   kind: "cover" | "section" | "content";
-  num?: string;
+  num?: string | undefined;
   title: string;
-  titleEn?: string;
-  subtitle?: string;
-  lead?: string;
-  leadEn?: string;
-  bullets?: SlideBullet[];
-  table?: SlideTable;
-  columns?: { label: string; value: string }[];
+  titleEn?: string | undefined;
+  subtitle?: string | undefined;
+  lead?: string | undefined;
+  leadEn?: string | undefined;
+  bullets?: SlideBullet[] | undefined;
+  table?: SlideTable | undefined;
+  columns?: { label: string; value: string }[] | undefined;
 }
 
 export interface DeckInput {
