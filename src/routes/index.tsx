@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { BriefForm } from "@/components/pitch/BriefForm";
 import { ProposalView } from "@/components/pitch/ProposalView";
 import { buildExportHtml, openExport } from "@/lib/export-html";
+import { buildSlidesHtml, openSlides } from "@/lib/export-slides-html";
 import {
   generateCompetitors,
   generateContent,
@@ -76,6 +77,7 @@ function Workbench() {
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [competitors, setCompetitors] = useState<CompetitorResult | null>(null);
   const [translation, setTranslation] = useState<Bilingual>({});
+  const [pptxBusy, setPptxBusy] = useState(false);
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
 
@@ -254,6 +256,9 @@ function Workbench() {
           groupStatus={groupStatus}
           onRetry={retry}
           onExport={exportProposal}
+          onExportSlides={exportSlides}
+          onExportPptx={exportPptx}
+          pptxBusy={pptxBusy}
         />
       )}
 
