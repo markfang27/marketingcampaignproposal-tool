@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { BriefForm } from "@/components/pitch/BriefForm";
 import { ProposalView } from "@/components/pitch/ProposalView";
 import { buildExportHtml, openExport } from "@/lib/export-html";
+import { buildSlidesHtml, openSlides } from "@/lib/export-slides-html";
 import {
   generateCompetitors,
   generateContent,
@@ -76,6 +77,7 @@ function Workbench() {
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [competitors, setCompetitors] = useState<CompetitorResult | null>(null);
   const [translation, setTranslation] = useState<Bilingual>({});
+  const [pptxBusy, setPptxBusy] = useState(false);
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
 
@@ -174,9 +176,32 @@ function Workbench() {
     window.scrollTo({ top: 0 });
   };
 
+  const deckInput = () =>
+    brief && strategy && content && plan && competitors
+      ? { brief, strategy, content, plan, competitors, translation }
+      : null;
+
   const exportProposal = () => {
-    if (brief && strategy && content && plan && competitors) {
-      openExport(buildExportHtml({ brief, strategy, content, plan, competitors, translation }));
+    const d = deckInput();
+    if (d) openExport(buildExportHtml(d));
+  };
+
+  const exportSlides = () => {
+    const d = deckInput();
+    if (d) openSlides(buildSlidesHtml(d));
+  };
+
+  const exportPptx = async () => {
+    const d = deckInput();
+    if (!d) return;
+    setPptxBusy(true);
+    try {
+      const { downloadPptx } = await import("@/lib/export-pptx");
+      await downloadPptx(d);
+    } catch (error) {
+      console.error("pptx export failed", error);
+    } finally {
+      setPptxBusy(false);
     }
   };
 
@@ -231,6 +256,9 @@ function Workbench() {
           groupStatus={groupStatus}
           onRetry={retry}
           onExport={exportProposal}
+          onExportSlides={exportSlides}
+          onExportPptx={exportPptx}
+          pptxBusy={pptxBusy}
         />
       )}
 

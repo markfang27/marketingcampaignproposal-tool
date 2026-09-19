@@ -24,6 +24,9 @@ interface Props {
   groupStatus: Record<GroupName, GroupStatus | "idle">;
   onRetry: (group: GroupName) => void;
   onExport: () => void;
+  onExportSlides: () => void;
+  onExportPptx: () => void;
+  pptxBusy?: boolean;
 }
 
 // 英文对照行:双语提案时显示在中文下方
@@ -128,6 +131,9 @@ export function ProposalView({
   groupStatus,
   onRetry,
   onExport,
+  onExportSlides,
+  onExportPptx,
+  pptxBusy,
 }: Props) {
   const trS = translation.strategy;
   const trC = translation.content;
@@ -648,15 +654,41 @@ export function ProposalView({
           </SectionShell>
 
           <div className="pt-8">
-            <Button
-              onClick={onExport}
-              disabled={!exportReady}
-              className="h-11 rounded-none bg-foreground px-8 text-[15px] text-background hover:bg-foreground/85"
-            >
-              导出提案文档
-            </Button>
-            <p className="mt-3 text-[12.5px] text-muted-foreground">
-              会在新标签页打开排版完整的提案文档,浏览器中可直接打印 / 另存为 PDF。
+            <p className="font-display text-[11px] tracking-[0.25em] text-brand">
+              EXPORT · 导出
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button
+                onClick={onExport}
+                disabled={!exportReady}
+                className="h-11 rounded-none bg-foreground px-8 text-[15px] text-background hover:bg-foreground/85"
+              >
+                导出提案文档
+              </Button>
+              <Button
+                onClick={onExportPptx}
+                disabled={!exportReady || pptxBusy}
+                variant="outline"
+                className="h-11 gap-2 rounded-none border-foreground px-8 text-[15px]"
+              >
+                {pptxBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                下载 PPT (.pptx)
+              </Button>
+              <Button
+                onClick={onExportSlides}
+                disabled={!exportReady}
+                variant="outline"
+                className="h-11 rounded-none border-border px-8 text-[15px]"
+              >
+                网页幻灯片放映
+              </Button>
+            </div>
+            <p className="mt-3 text-[12.5px] leading-6 text-muted-foreground">
+              提案文档:新标签页打开排版完整的文档,可直接打印 / 另存为 PDF。
+              <br />
+              PPT:下载 16:9 幻灯片文件,可在 PowerPoint / Keynote 里继续改。
+              <br />
+              网页放映:新标签页里按 ← → 翻页,面试现场无需 Office 也能演示。
             </p>
           </div>
         </div>
