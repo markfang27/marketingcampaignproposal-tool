@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, PenLine } from "lucide-react";
+import { FileText, Loader2, Menu, PanelLeftClose, PanelLeftOpen, PenLine, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BriefForm } from "@/components/pitch/BriefForm";
@@ -66,6 +66,16 @@ const TRANSLATE_ORDER: TranslatableKind[] = [
   "competitors",
 ];
 
+interface ProposalRecord {
+  id: string;
+  brand: string;
+  industry: string;
+  createdAt: string;
+  brief: BriefInput;
+}
+
+const RECORD_KEY = "pitch-copilot-records";
+
 function Workbench() {
   const runStrategy = useServerFn(generateStrategy);
   const runContent = useServerFn(generateContent);
@@ -82,6 +92,10 @@ function Workbench() {
   const [sources, setSources] = useState<CompetitorSource[]>([]);
   const [translation, setTranslation] = useState<Bilingual>({});
   const [pptxBusy, setPptxBusy] = useState(false);
+  const [records, setRecords] = useState<ProposalRecord[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [draftBrief, setDraftBrief] = useState<BriefInput | null>(null);
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
 
@@ -92,6 +106,32 @@ function Workbench() {
     plan?: PlanResult;
     competitors?: CompetitorResult;
   }>({});
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(RECORD_KEY);
+      if (saved) setRecords(JSON.parse(saved) as ProposalRecord[]);
+    } catch {
+      setRecords([]);
+    }
+  }, []);
+
+  const remember = (b: BriefInput) => {
+    setRecords((current) => {
+      const next = [
+        {
+          id: `${Date.now()}`,
+          brand: b.brand,
+          industry: b.industry || "未分类",
+          createdAt: new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(new Date()),
+          brief: b,
+        },
+        ...current.filter((item) => item.brand !== b.brand),
+      ].slice(0, 12);
+      window.localStorage.setItem(RECORD_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const callGroup = async (group: GroupName, b: BriefInput) => {
     if (group === "strategy") {
@@ -159,6 +199,7 @@ function Workbench() {
   };
 
   const start = async (b: BriefInput) => {
+    remember(b);
     setBrief(b);
     setStrategy(null);
     setContent(null);
@@ -191,6 +232,7 @@ function Workbench() {
     setTranslation({});
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
+    setDraftBrief(null);
     window.scrollTo({ top: 0 });
   };
 
@@ -230,8 +272,11 @@ function Workbench() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-          <div className="flex items-baseline gap-3">
+        <div className="grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:px-5">
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileSidebar(true)} aria-label="打开方案记录">
+            <Menu />
+          </Button>
+          <div className="flex min-w-0 items-baseline gap-3">
             <span className="font-display text-lg font-bold tracking-wide text-foreground">
               Pitch Copilot
             </span>
@@ -239,7 +284,7 @@ function Workbench() {
               AI 营销提案工作台
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {busy && (
               <span className="mr-1 flex items-center gap-2 text-[12.5px] text-brand">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -261,26 +306,93 @@ function Workbench() {
         </div>
       </header>
 
-      {brief === null ? (
-        <BriefForm onSubmit={start} />
-      ) : (
-        <ProposalView
-          brief={brief}
-          strategy={strategy}
-          content={content}
-          plan={plan}
-          competitors={competitors}
-          sources={sources}
-          translation={translation}
-          groupStatus={groupStatus}
-          onRetry={retry}
-          onExport={exportProposal}
-          onExportSlides={exportSlides}
-          onExportPptx={exportPptx}
-          pptxBusy={pptxBusy}
-        />
-      )}
+      <div className="flex min-h-[calc(100vh-4rem)] w-full">
+        <aside className={`hidden shrink-0 border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:block ${sidebarOpen ? "w-64" : "w-16"}`}>
+          <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-3">
+            <div className={`flex items-center ${sidebarOpen ? "justify-between" : "justify-center"}`}>
+              {sidebarOpen && <p className="px-2 text-xs font-semibold text-sidebar-foreground">我的方案</p>}
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen((open) => !open)} aria-label={sidebarOpen ? "收起侧栏" : "展开侧栏"}>
+                {sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className={`mt-3 border-sidebar-border bg-sidebar hover:bg-sidebar-accent ${sidebarOpen ? "w-full justify-start" : "w-full px-0"}`}
+              onClick={restart}
+              title="新建提案"
+            >
+              <Plus />{sidebarOpen && "新建提案"}
+            </Button>
+            {sidebarOpen && (
+              <div className="mt-6">
+                <p className="px-2 text-[11px] font-semibold text-muted-foreground">最近生成</p>
+                <div className="mt-2 space-y-1">
+                  {records.length === 0 ? (
+                    <p className="px-2 py-4 text-xs leading-5 text-muted-foreground">生成的方案会出现在这里，方便再次使用同一份 Brief。</p>
+                  ) : records.map((record) => (
+                    <Button
+                      key={record.id}
+                      type="button"
+                      variant="ghost"
+                      className="h-auto w-full justify-start px-2 py-2.5 text-left"
+                      onClick={() => { restart(); setDraftBrief(record.brief); }}
+                    >
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-foreground">{record.brand}</span>
+                        <span className="mt-0.5 block truncate text-[10px] font-normal text-muted-foreground">{record.createdAt} · {record.industry}</span>
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
 
+        {mobileSidebar && (
+          <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setMobileSidebar(false)}>
+            <aside className="h-full w-[min(82vw,300px)] bg-sidebar p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <p className="font-display text-sm font-semibold">我的方案</p>
+                <Button variant="ghost" size="icon" onClick={() => setMobileSidebar(false)} aria-label="关闭方案记录"><X /></Button>
+              </div>
+              <Button type="button" variant="outline" className="mt-4 w-full justify-start" onClick={() => { restart(); setMobileSidebar(false); }}><Plus />新建提案</Button>
+              <div className="mt-5 space-y-1">
+                {records.map((record) => (
+                  <Button key={record.id} type="button" variant="ghost" className="h-auto w-full justify-start px-2 py-3 text-left" onClick={() => { restart(); setDraftBrief(record.brief); setMobileSidebar(false); }}>
+                    <FileText className="text-primary" />
+                    <span className="min-w-0"><span className="block truncate text-xs font-semibold">{record.brand}</span><span className="block truncate text-[10px] text-muted-foreground">{record.createdAt} · {record.industry}</span></span>
+                  </Button>
+                ))}
+              </div>
+            </aside>
+          </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          {brief === null ? (
+            <BriefForm key={draftBrief ? `${draftBrief.brand}-${draftBrief.objective}` : "new"} initialBrief={draftBrief} onSubmit={start} />
+          ) : (
+            <ProposalView
+              brief={brief}
+              strategy={strategy}
+              content={content}
+              plan={plan}
+              competitors={competitors}
+              sources={sources}
+              translation={translation}
+              groupStatus={groupStatus}
+              onRetry={retry}
+              onExport={exportProposal}
+              onExportSlides={exportSlides}
+              onExportPptx={exportPptx}
+              pptxBusy={pptxBusy}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

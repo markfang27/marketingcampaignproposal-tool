@@ -1,12 +1,30 @@
-import { useState } from "react";
-import { Check, Loader2, Plus, Search, Sparkles } from "lucide-react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { searchBrands } from "@/lib/proposal.functions";
-import { CASE_INDUSTRIES, CASE_LIBRARY } from "@/lib/case-library";
+import {
+  ArrowRight,
+  Check,
+  FileText,
+  FolderOpen,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { CASE_INDUSTRIES, CASE_LIBRARY } from "@/lib/case-library";
+import { parseBriefFile, searchBrands } from "@/lib/proposal.functions";
 import type { BriefInput } from "@/lib/proposal-schema";
 
 const EMPTY_BRIEF: BriefInput = {
@@ -22,445 +40,368 @@ const EMPTY_BRIEF: BriefInput = {
   competitors: "",
   totalBudget: "",
   language: "zh",
-    research: "web",
+  research: "web",
 };
 
 export const SAMPLE_BRIEF: BriefInput = CASE_LIBRARY[0]!.brief;
 
-const FIELDS: {
-  name: keyof BriefInput;
-  label: string;
-  placeholder: string;
-  long?: boolean;
-}[] = [
-  { name: "brand", label: "品牌名称", placeholder: "例如:轻汽 Sparkle" },
-  {
-    name: "clientName",
-    label: "客户名称",
-    placeholder: "例如:轻汽(上海)食品有限公司",
-  },
-  { name: "industry", label: "所属行业", placeholder: "例如:饮料 / 新消费" },
-  {
-    name: "city",
-    label: "目标城市",
-    placeholder: "例如:上海、北京、成都",
-  },
-  {
-    name: "product",
-    label: "产品 / 服务简介",
-    placeholder: "核心卖点、口味/规格、价格带等",
-    long: true,
-  },
-  {
-    name: "audience",
-    label: "目标人群",
-    placeholder: "年龄、城市线级、生活方式、媒介习惯",
-    long: true,
-  },
-  {
-    name: "objective",
-    label: "营销诉求",
-    placeholder: "希望达成什么:认知、种草、转化……",
-    long: true,
-  },
-  { name: "budget", label: "预算量级", placeholder: "例如:约 200 万元" },
-  { name: "duration", label: "投放周期", placeholder: "例如:8 周" },
-  {
-    name: "competitors",
-    label: "主要竞品(可选)",
-    placeholder: "例如:元气森林、农夫山泉汽茶,留空则由 AI 选取代表竞品",
-  },
-  {
-    name: "totalBudget",
-    label: "总预算(可选)",
-    placeholder: "例如:200 万元,用于自动拆分预算分配",
-  },
+const INDUSTRIES = [
+  ...CASE_INDUSTRIES,
+  "食品 / 餐饮",
+  "服饰 / 生活方式",
+  "互联网 / 软件",
+  "金融 / 专业服务",
+];
+const CITIES = ["全国", "北京", "上海", "广州、深圳", "一二线城市", "新一线城市"];
+const BUDGETS = ["50 万元以内", "50-100 万元", "100-300 万元", "300-500 万元", "500 万元以上"];
+const DURATIONS = ["4 周", "6 周", "8 周", "10 周", "12 周"];
+
+type Tab = "form" | "knowledge" | "assets";
+
+const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
+  { id: "form", label: "填写", icon: FileText },
+  { id: "knowledge", label: "知识库", icon: FolderOpen },
+  { id: "assets", label: "素材库", icon: UploadCloud },
 ];
 
-const LANGUAGES: {
-  value: BriefInput["language"];
-  label: string;
-  desc: string;
-}[] = [
-  { value: "zh", label: "中文提案", desc: "全中文提案书" },
-  {
-    value: "en",
-    label: "中英双语提案",
-    desc: "生成后自动翻译为英文,中英对照,适合跨国客户",
-  },
-];
+function fileToBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      resolve(result.includes(",") ? result.split(",")[1] ?? "" : result);
+    };
+    reader.onerror = () => reject(new Error("文件读取失败"));
+    reader.readAsDataURL(file);
+  });
+}
 
-const RESEARCH: {
-  value: BriefInput["research"];
+function Field({
+  label,
+  children,
+  wide,
+}: {
   label: string;
-  desc: string;
-}[] = [
-  {
-    value: "web",
-    label: "公开数据检索",
-    desc: "先抓取竞品官网与公开报道,AI 基于原文归纳,并列出资料来源",
-  },
-  {
-    value: "ai",
-    label: "AI 推断",
-    desc: "不联网,直接由 AI 依行业常识推断,速度更快",
-  },
-];
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div className={wide ? "md:col-span-2" : undefined}>
+      <Label className="mb-2 block text-xs font-semibold text-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
 
 export function BriefForm({
   onSubmit,
+  initialBrief,
 }: {
   onSubmit: (brief: BriefInput) => void;
+  initialBrief?: BriefInput | null;
 }) {
-  const [brief, setBrief] = useState<BriefInput>(EMPTY_BRIEF);
-  const [industry, setIndustry] = useState<string>(CASE_INDUSTRIES[0]!);
+  const [brief, setBrief] = useState<BriefInput>(initialBrief ?? EMPTY_BRIEF);
+  const [tab, setTab] = useState<Tab>("form");
+  const [industry, setIndustry] = useState(CASE_INDUSTRIES[0] ?? "");
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
   const [brandQuery, setBrandQuery] = useState("");
-  const [hits, setHits] = useState<
-    { name: string; note: string; url: string }[] | null
-  >(null);
+  const [hits, setHits] = useState<{ name: string; note: string; url: string }[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsedFile, setParsedFile] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const runSearchBrands = useServerFn(searchBrands);
+  const runParseFile = useServerFn(parseBriefFile);
+
+  const set = <K extends keyof BriefInput>(name: K, value: BriefInput[K]) => {
+    setActiveCaseId(null);
+    setBrief((current) => ({ ...current, [name]: value }));
+  };
+
+  const selectCase = (id: string) => {
+    const item = CASE_LIBRARY.find((entry) => entry.id === id);
+    if (!item) return;
+    setBrief(item.brief);
+    setActiveCaseId(id);
+    setTab("form");
+  };
 
   const doSearch = async () => {
-    const q = brandQuery.trim();
-    if (!q) return;
+    const query = brandQuery.trim();
+    if (!query) return;
     setSearching(true);
     setSearchError(null);
     try {
-      const r = await runSearchBrands({
-        data: { query: q, industry: brief.industry },
-      });
-      setHits(r);
+      setHits(await runSearchBrands({ data: { query, industry: brief.industry } }));
     } catch (error) {
       console.error("brand search failed", error);
-      setSearchError("搜索失败,请稍后重试或直接手动填写竞品名称。");
-      setHits(null);
+      setSearchError("搜索失败，请稍后重试或直接填写竞品。 ");
     } finally {
       setSearching(false);
     }
   };
 
   const addCompetitor = (name: string) => {
-    setBrief((b) => {
-      const list = b.competitors
-        .split(/[,,、]+/)
-        .map((v) => v.trim())
-        .filter(Boolean);
-      if (list.includes(name)) return b;
-      return { ...b, competitors: [...list, name].join("、") };
-    });
+    const names = brief.competitors.split(/[，,、]+/).map((item) => item.trim()).filter(Boolean);
+    if (!names.includes(name)) set("competitors", [...names, name].join("、"));
   };
 
-  const set = (name: keyof BriefInput, value: string) => {
-    setActiveCaseId(null);
-    setBrief((b) => ({ ...b, [name]: value }));
+  const parseFile = async (file: File) => {
+    setParsing(true);
+    setParseError(null);
+    setParsedFile(null);
+    try {
+      const parsed = await runParseFile({
+        data: {
+          filename: file.name,
+          mediaType: file.type || "application/octet-stream",
+          base64: await fileToBase64(file),
+        },
+      });
+      setBrief((current) => ({ ...current, ...parsed }));
+      setParsedFile(file.name);
+      setTab("form");
+    } catch (error) {
+      console.error("brief parse failed", error);
+      setParseError(error instanceof Error ? error.message : "解析失败，请换一个文件重试");
+    } finally {
+      setParsing(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
   };
 
-  const ready =
-    brief.brand.trim() &&
-    brief.product.trim() &&
-    brief.audience.trim() &&
-    brief.objective.trim();
+  const ready = Boolean(
+    brief.brand.trim() && brief.product.trim() && brief.audience.trim() && brief.objective.trim(),
+  );
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-12 px-6 py-14 md:grid-cols-[5fr_7fr] md:gap-16">
-      <div>
-        <p className="font-display text-sm tracking-[0.2em] text-brand">
-          STEP 1 · CLIENT BRIEF
-        </p>
-        <h1 className="mt-4 font-display text-4xl leading-tight font-semibold text-foreground md:text-[2.75rem]">
-          把 Brief 交给 AI,
-          <br />
-          十分钟拿到一份
-          <br />
-          可提案的传播方案
-        </h1>
-        <p className="mt-6 text-[15px] leading-7 text-muted-foreground">
-          填写客户 Brief, AI 将按代理公司提案结构,产出市场洞察、核心策略、
-          传播主题、多平台内容矩阵、执行排期、预算分配、KPI 框架与竞品分析
-          七个章节,并支持一键导出为可打印的提案文档。
-        </p>
-        <div className="mt-8 border-l-2 border-brand/40 pl-4">
-          <p className="text-sm leading-6 text-muted-foreground">
-            没有现成 Brief?在右侧
-            <span className="text-foreground">「客户案例库」</span>
-            里选一个行业与品牌,系统会自动填入该品牌常见的真实需求,
-            直接体验完整提案流程。
-          </p>
-        </div>
-      </div>
-
-      <form
-        className="space-y-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (ready) onSubmit(brief);
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <p className="font-display text-sm tracking-[0.2em] text-muted-foreground">
-            CAMPAIGN BRIEF
-          </p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 text-[13px] text-brand hover:text-brand"
-            onClick={() => setBrief(SAMPLE_BRIEF)}
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
+      <section className="mb-6 grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-card">
+        {["完善客户信息", "生成策略内容", "导出提案文件"].map((label, index) => (
+          <div
+            key={label}
+            className={`flex min-w-0 items-center justify-center gap-2 border-r border-border px-2 py-3 last:border-r-0 ${index === 0 ? "bg-accent" : "text-muted-foreground"}`}
           >
-            填入示例 Brief
-          </Button>
-        </div>
-
-        <div className="border border-dashed border-border bg-muted/30 p-4">
-          <p className="text-[13px] font-medium text-foreground">客户案例库</p>
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            先选行业,再选品牌,自动填入该品牌常见的真实需求。
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {CASE_INDUSTRIES.map((ind) => {
-              const selected = industry === ind;
-              return (
-                <button
-                  key={ind}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setIndustry(ind)}
-                  className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${
-                    selected
-                      ? "border-brand bg-brand/10 text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {ind}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {CASE_LIBRARY.filter((c) => c.industry === industry).map((c) => {
-              const selected = activeCaseId === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => {
-                    setBrief(c.brief);
-                    setActiveCaseId(c.id);
-                  }}
-                  className={`flex items-start gap-2 border px-3 py-2.5 text-left transition-colors ${
-                    selected
-                      ? "border-brand bg-brand/5"
-                      : "border-border bg-background hover:border-brand/50"
-                  }`}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-foreground">
-                      {c.brand}
-                    </span>
-                    <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-                      {c.tagline}
-                    </span>
-                  </span>
-                  {selected && <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
-          {FIELDS.map((f) => (
-            <div
-              key={f.name}
-              className={f.long ? "md:col-span-2" : undefined}
-            >
-              <Label
-                htmlFor={f.name}
-                className="text-[13px] font-medium text-foreground"
-              >
-                {f.label}
-              </Label>
-              {f.long ? (
-                <Textarea
-                  id={f.name}
-                  rows={2}
-                  value={brief[f.name]}
-                  placeholder={f.placeholder}
-                  onChange={(e) => set(f.name, e.target.value)}
-                  className="mt-1.5 resize-none border-0 border-b border-input bg-transparent px-0 shadow-none focus-visible:border-brand focus-visible:ring-0"
-                />
-              ) : (
-                <Input
-                  id={f.name}
-                  value={brief[f.name]}
-                  placeholder={f.placeholder}
-                  onChange={(e) => set(f.name, e.target.value)}
-                  className="mt-1.5 border-0 border-b border-input bg-transparent px-0 shadow-none focus-visible:border-brand focus-visible:ring-0"
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-
-        <div className="border border-dashed border-border bg-muted/30 p-4">
-          <p className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
-            <Search className="h-3.5 w-3.5 text-brand" />
-            竞品品牌搜索
-          </p>
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            搜索品牌名或品类,从公开网页找到候选竞品,点击加入上方「主要竞品」。
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Input
-              value={brandQuery}
-              placeholder="例如:无糖气泡水 / 元气森林"
-              onChange={(e) => setBrandQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void doSearch();
-                }
-              }}
-              className="h-9 border-0 border-b border-input bg-transparent px-0 text-[13px] shadow-none focus-visible:border-brand focus-visible:ring-0"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={searching || !brandQuery.trim()}
-              onClick={() => void doSearch()}
-              className="h-9 shrink-0 gap-1.5 rounded-none text-[13px]"
-            >
-              {searching ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Search className="h-3.5 w-3.5" />
-              )}
-              搜索
-            </Button>
-          </div>
-          {searchError && (
-            <p className="mt-2 text-[12px] text-destructive">{searchError}</p>
-          )}
-          {hits && hits.length === 0 && !searching && (
-            <p className="mt-2 text-[12px] text-muted-foreground">
-              没找到结果,换个关键词试试。
-            </p>
-          )}
-          {hits && hits.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {hits.map((h) => (
-                <li key={h.url}>
-                  <button
-                    type="button"
-                    onClick={() => addCompetitor(h.name)}
-                    className="flex w-full items-start gap-2 border border-border bg-background px-3 py-2 text-left transition-colors hover:border-brand/60"
-                  >
-                    <Plus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-medium text-foreground">
-                        {h.name}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                        {h.note || h.url}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-4">
-            <Label className="text-[12.5px] font-medium text-foreground">
-              竞品资料来源
-            </Label>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {RESEARCH.map((r) => {
-                const selected = brief.research === r.value;
-                return (
-                  <button
-                    key={r.value}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() =>
-                      setBrief((b) => ({ ...b, research: r.value }))
-                    }
-                    className={`border px-3 py-2.5 text-left transition-colors ${
-                      selected
-                        ? "border-brand bg-brand/5"
-                        : "border-border bg-background hover:border-brand/50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground">
-                      {selected && <Check className="h-3.5 w-3.5 text-brand" />}
-                      {r.label}
-                    </span>
-                    <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-                      {r.desc}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-[13px] font-medium text-foreground">
-            提案语言
-          </Label>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {LANGUAGES.map((l) => {
-              const selected = brief.language === l.value;
-              return (
-                <button
-                  key={l.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setBrief((b) => ({ ...b, language: l.value }))}
-                  className={`border px-4 py-3 text-left transition-colors ${
-                    selected
-                      ? "border-brand bg-brand/5"
-                      : "border-border bg-background hover:border-brand/50"
-                  }`}
-                >
-                  <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
-                    {selected && <Check className="h-3.5 w-3.5 text-brand" />}
-                    {l.label}
-                  </span>
-                  <span className="mt-0.5 block text-[11.5px] leading-4 text-muted-foreground">
-                    {l.desc}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 pt-2">
-          <Button
-            type="submit"
-            disabled={!ready}
-            className="h-11 gap-2 rounded-none bg-foreground px-8 text-[15px] text-background hover:bg-foreground/85"
-          >
-            <Sparkles className="h-4 w-4" />
-            生成提案
-          </Button>
-          {!ready && (
-            <span className="text-[13px] text-muted-foreground">
-              至少填写品牌、产品、人群与诉求
+            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+              {index + 1}
             </span>
-          )}
-        </div>
-      </form>
-    </div>
+            <span className="truncate text-xs font-semibold sm:text-sm">{label}</span>
+          </div>
+        ))}
+      </section>
+
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <header className="border-b border-border px-5 py-5 sm:px-7">
+          <p className="text-xs font-semibold text-primary">CAMPAIGN WORKSPACE</p>
+          <h1 className="mt-1 font-display text-2xl font-semibold text-foreground">创建营销提案</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            填写关键信息，或上传客户资料自动识别，AI 将生成七个完整提案章节。
+          </p>
+        </header>
+
+        <nav className="grid grid-cols-3 border-b border-border px-3 sm:px-5" aria-label="工作区内容">
+          {TABS.map((item) => (
+            <Button
+              key={item.id}
+              type="button"
+              variant="ghost"
+              onClick={() => setTab(item.id)}
+              aria-pressed={tab === item.id}
+              className={`h-12 rounded-none border-b-2 px-2 text-sm ${tab === item.id ? "border-primary text-primary hover:bg-transparent" : "border-transparent text-muted-foreground hover:bg-transparent hover:text-foreground"}`}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Button>
+          ))}
+        </nav>
+
+        {tab === "form" && (
+          <form
+            className="p-5 sm:p-7"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (ready) onSubmit(brief);
+            }}
+          >
+            {parsedFile && (
+              <div className="mb-5 flex items-center gap-2 rounded-md border border-primary/20 bg-accent px-3 py-2 text-xs text-accent-foreground">
+                <Check className="h-4 w-4 text-primary" />
+                已从《{parsedFile}》回填信息，请检查后生成。
+              </div>
+            )}
+
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-base font-semibold text-foreground">基础信息</h2>
+                <p className="mt-1 text-xs text-muted-foreground">带 * 的四项是生成提案的必要信息</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => selectCase(CASE_LIBRARY[0]!.id)}>
+                填入示例
+              </Button>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="品牌名称 *">
+                <Input value={brief.brand} onChange={(e) => set("brand", e.target.value)} placeholder="输入品牌名称" />
+              </Field>
+              <Field label="客户公司">
+                <Input value={brief.clientName} onChange={(e) => set("clientName", e.target.value)} placeholder="输入客户公司全称" />
+              </Field>
+              <Field label="所属行业">
+                <Select value={brief.industry} onValueChange={(value) => set("industry", value)}>
+                  <SelectTrigger><SelectValue placeholder="选择行业" /></SelectTrigger>
+                  <SelectContent>{INDUSTRIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="目标城市">
+                <Select value={brief.city} onValueChange={(value) => set("city", value)}>
+                  <SelectTrigger><SelectValue placeholder="选择主要区域" /></SelectTrigger>
+                  <SelectContent>{CITIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="产品 / 服务 *" wide>
+                <Textarea rows={3} value={brief.product} onChange={(e) => set("product", e.target.value)} placeholder="产品特点、核心卖点、规格与价格带" />
+              </Field>
+              <Field label="目标人群 *" wide>
+                <Textarea rows={3} value={brief.audience} onChange={(e) => set("audience", e.target.value)} placeholder="年龄、生活方式、核心需求与媒介习惯" />
+              </Field>
+              <Field label="营销目标 *" wide>
+                <Textarea rows={3} value={brief.objective} onChange={(e) => set("objective", e.target.value)} placeholder="希望达成的认知、种草、线索或转化目标" />
+              </Field>
+              <Field label="预算量级">
+                <Select value={brief.budget} onValueChange={(value) => set("budget", value)}>
+                  <SelectTrigger><SelectValue placeholder="选择预算" /></SelectTrigger>
+                  <SelectContent>{BUDGETS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="投放周期">
+                <Select value={brief.duration} onValueChange={(value) => set("duration", value)}>
+                  <SelectTrigger><SelectValue placeholder="选择周期" /></SelectTrigger>
+                  <SelectContent>{DURATIONS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="总预算">
+                <Input value={brief.totalBudget} onChange={(e) => set("totalBudget", e.target.value)} placeholder="例如：200 万元" />
+              </Field>
+              <Field label="提案语言">
+                <Select value={brief.language} onValueChange={(value: BriefInput["language"]) => set("language", value)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="zh">中文</SelectItem>
+                    <SelectItem value="en">中英双语</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="mt-7 border-t border-border pt-6">
+              <h2 className="font-display text-base font-semibold text-foreground">竞品分析</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+                <Input value={brief.competitors} onChange={(e) => set("competitors", e.target.value)} placeholder="已知竞品，用顿号分隔；留空则自动推荐" />
+                <Select value={brief.research} onValueChange={(value: BriefInput["research"]) => set("research", value)}>
+                  <SelectTrigger className="md:w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="web">公开数据检索</SelectItem>
+                    <SelectItem value="ai">AI 行业推断</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <Input
+                  value={brandQuery}
+                  onChange={(e) => setBrandQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void doSearch(); } }}
+                  placeholder="搜索品牌或品类，查找真实竞品"
+                />
+                <Button type="button" variant="outline" onClick={() => void doSearch()} disabled={searching || !brandQuery.trim()}>
+                  {searching ? <Loader2 className="animate-spin" /> : <Search />}
+                  <span className="hidden sm:inline">搜索</span>
+                </Button>
+              </div>
+              {searchError && <p className="mt-2 text-xs text-destructive">{searchError}</p>}
+              {hits && hits.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {hits.map((hit) => (
+                    <Button key={`${hit.name}-${hit.url}`} type="button" variant="secondary" size="sm" onClick={() => addCompetitor(hit.name)} title={hit.note}>
+                      <Plus />{hit.name}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse items-start justify-between gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
+              <p className="text-xs text-muted-foreground">AI 会分阶段生成，失败章节可单独重试</p>
+              <Button type="submit" size="lg" disabled={!ready} className="w-full sm:w-auto">
+                <Sparkles />生成完整提案<ArrowRight />
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {tab === "knowledge" && (
+          <div className="p-5 sm:p-7">
+            <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)]">
+              <div>
+                <Label className="mb-2 block text-xs font-semibold">行业分类</Label>
+                <Select value={industry} onValueChange={setIndustry}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{CASE_INDUSTRIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">选择案例后会自动填入常见客户需求，你仍可继续修改。</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {CASE_LIBRARY.filter((item) => item.industry === industry).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => selectCase(item.id)}
+                    className={`group rounded-md border p-4 text-left transition-colors hover:border-primary ${activeCaseId === item.id ? "border-primary bg-accent" : "border-border bg-background"}`}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-display text-sm font-semibold text-foreground">{item.brand}</span>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                    </span>
+                    <span className="mt-2 block text-xs leading-5 text-muted-foreground">{item.tagline}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "assets" && (
+          <div className="p-5 sm:p-7">
+            <div className="rounded-lg border border-dashed border-primary/35 bg-accent/50 px-5 py-12 text-center">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-card text-primary shadow-sm">
+                {parsing ? <Loader2 className="h-6 w-6 animate-spin" /> : <UploadCloud className="h-6 w-6" />}
+              </div>
+              <h2 className="mt-4 font-display text-base font-semibold text-foreground">
+                {parsing ? "正在读取客户资料" : "上传客户 Brief 或品牌资料"}
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">
+                支持 PDF、Word、TXT、PNG 和 JPG，最大 10MB。解析完成后会自动回填品牌、产品、人群、预算与竞品信息。
+              </p>
+              <input
+                ref={fileInput}
+                type="file"
+                className="hidden"
+                accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/png,image/jpeg"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void parseFile(file);
+                }}
+              />
+              <Button type="button" className="mt-5" disabled={parsing} onClick={() => fileInput.current?.click()}>
+                <UploadCloud />选择文件
+              </Button>
+              {parseError && <p className="mt-3 text-xs text-destructive">{parseError}</p>}
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
