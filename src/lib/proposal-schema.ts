@@ -13,6 +13,8 @@ export const BriefInputSchema = z.object({
   competitors: z.string().default(""),
   totalBudget: z.string().default(""),
   language: z.enum(["zh", "en"]).default("zh"),
+  // 竞品资料来源:web=Firecrawl 抓取公开数据后归纳,ai=纯 AI 推断
+  research: z.enum(["web", "ai"]).default("web"),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;
@@ -88,6 +90,13 @@ export const CompetitorOutputSchema = z.object({
 });
 
 export type CompetitorResult = z.infer<typeof CompetitorOutputSchema>;
+
+/** 竞品分析引用的公开资料来源 */
+export interface CompetitorSource {
+  brand: string;
+  title: string;
+  url: string;
+}
 
 // 中英双语:各章节的英文译文,结构与中文结果一一对应
 export type TranslatableKind = "strategy" | "content" | "plan" | "competitors";
