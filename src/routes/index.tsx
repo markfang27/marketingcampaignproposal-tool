@@ -174,9 +174,32 @@ function Workbench() {
     window.scrollTo({ top: 0 });
   };
 
+  const deckInput = () =>
+    brief && strategy && content && plan && competitors
+      ? { brief, strategy, content, plan, competitors, translation }
+      : null;
+
   const exportProposal = () => {
-    if (brief && strategy && content && plan && competitors) {
-      openExport(buildExportHtml({ brief, strategy, content, plan, competitors, translation }));
+    const d = deckInput();
+    if (d) openExport(buildExportHtml(d));
+  };
+
+  const exportSlides = () => {
+    const d = deckInput();
+    if (d) openSlides(buildSlidesHtml(d));
+  };
+
+  const exportPptx = async () => {
+    const d = deckInput();
+    if (!d) return;
+    setPptxBusy(true);
+    try {
+      const { downloadPptx } = await import("@/lib/export-pptx");
+      await downloadPptx(d);
+    } catch (error) {
+      console.error("pptx export failed", error);
+    } finally {
+      setPptxBusy(false);
     }
   };
 
