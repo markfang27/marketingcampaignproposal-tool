@@ -286,6 +286,94 @@ export const translateGroup = createServerFn({ method: "POST" })
 // ---------- 竞品品牌搜索:从公开网页找候选品牌 ----------
 const BRAND_QUERY = z.object({ query: z.string(), industry: z.string() });
 
+const FILE_BRIEF_INPUT = z.object({
+  filename: z.string(),
+  mediaType: z.string(),
+  base64: z.string(),
+});
+
+const ExtractedBriefSchema = z.object({
+  brand: z.string(),
+  clientName: z.string(),
+  city: z.string(),
+  industry: z.string(),
+  product: z.string(),
+  audience: z.string(),
+  objective: z.string(),
+  budget: z.string(),
+  duration: z.string(),
+  competitors: z.string(),
+  totalBudget: z.string(),
+});
+
+/** 从客户上传的 PDF、Word、图片或文本中提取 Brief 字段。 */
+export const parseBriefFile = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => FILE_BRIEF_INPUT.parse(input))
+  .handler(async ({ data }) => {
+    const bytes = Buffer.from(data.base64, "base64");
+    if (!bytes.length) throw new Error("文件内容为空，请重新上传");
+    if (bytes.length > 10 * 1024 * 1024) {
+      throw new Error("文件不能超过 10MB");
+    }
+
+    let text = "";
+    if (
+      data.mediaType.startsWith("text/") ||
+      /\.(txt|md|csv)$/i.test(data.filename)
+    ) {
+      text = bytes.toString("utf8");
+    } else if (
+      data.mediaType.includes("wordprocessingml") ||
+      /\.docx$/i.test(data.filename)
+    ) {
+      const mammoth = await import("mammoth");
+      const parsed = await mammoth.extractRawText({ buffer: bytes });
+      text = parsed.value;
+    }
+
+    const prompt =
+      "请从客户资料中提取营销 Brief。没有明确出现的信息填空字符串，不要猜测。产品简介保留核心卖点；目标人群保留年龄、城市、生活方式和媒介习惯；营销诉求保留目标与指标；竞品用顿号分隔。";
+    const content = text.trim()
+      ? `${prompt}\n\n文件名：${data.filename}\n\n资料正文：\n${text.slice(0, 30000)}`
+      : [
+          { type: "text" as const, text: prompt },
+          data.mediaType.startsWith("image/")
+            ? {
+                type: "image" as const,
+                image: `data:${data.mediaType};base64,${data.base64}`,
+              }
+            : {
+                type: "file" as const,
+                data: bytes,
+                mediaType: data.mediaType || "application/pdf",
+                filename: data.filename,
+              },
+        ];
+
+    const result = streamText({
+      model: buildModel(),
+      system:
+        "你是广告代理公司的客户资料整理专员，只做信息提取，不补写资料中不存在的事实。",
+      messages: [{ role: "user", content }],
+      output: Output.object({ schema: ExtractedBriefSchema }),
+      providerOptions: PROVIDER_OPTIONS,
+    });
+
+    try {
+      const extracted = await result.output;
+      return BriefInputSchema.parse({
+        ...extracted,
+        language: "zh",
+        research: "web",
+      });
+    } catch (error) {
+      if (NoObjectGeneratedError.isInstance(error)) {
+        throw new Error("没有识别出有效的 Brief 信息，请换一个文件重试");
+      }
+      throw error;
+    }
+  });
+
 const BrandListSchema = z.object({
   brands: z.array(
     z.object({
