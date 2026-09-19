@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
+import { CASE_INDUSTRIES, CASE_LIBRARY } from "@/lib/case-library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
