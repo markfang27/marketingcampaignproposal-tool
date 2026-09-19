@@ -21,19 +21,7 @@ const EMPTY_BRIEF: BriefInput = {
   style: "xiaohongshu",
 };
 
-export const SAMPLE_BRIEF: BriefInput = {
-  brand: "轻汽 Sparkle",
-  industry: "饮料 / 新消费",
-  product:
-    "0 糖 0 卡气泡水,添加膳食纤维与电解质,主打「好喝不负担」,现有白桃、青柠、西柚三个口味,250ml 细长罐装",
-  audience:
-    "22-32 岁一二线城市年轻白领,注重身材管理与生活品质,习惯在小红书、抖音获取种草信息,高频购买便利店饮品",
-  objective:
-    "新品上市 3 个月内建立「健康快乐水」心智,提升品牌认知与电商转化",
-  budget: "约 200 万元",
-  duration: "8 周",
-  style: "xiaohongshu",
-};
+export const SAMPLE_BRIEF: BriefInput = CASE_LIBRARY[0]!.brief;
 
 const FIELDS: {
   name: Exclude<keyof BriefInput, "style">;
