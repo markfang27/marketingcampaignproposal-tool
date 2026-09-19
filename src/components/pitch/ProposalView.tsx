@@ -24,6 +24,9 @@ interface Props {
   groupStatus: Record<GroupName, GroupStatus | "idle">;
   onRetry: (group: GroupName) => void;
   onExport: () => void;
+  onExportSlides: () => void;
+  onExportPptx: () => void;
+  pptxBusy?: boolean;
 }
 
 // 英文对照行:双语提案时显示在中文下方
@@ -128,6 +131,9 @@ export function ProposalView({
   groupStatus,
   onRetry,
   onExport,
+  onExportSlides,
+  onExportPptx,
+  pptxBusy,
 }: Props) {
   const trS = translation.strategy;
   const trC = translation.content;
