@@ -31,7 +31,6 @@ export const CASE_LIBRARY: CaseEntry[] = [
         "新品上市 3 个月内建立「健康快乐水」心智,提升品牌认知与电商转化",
       budget: "约 200 万元",
       duration: "8 周",
-      style: "xiaohongshu",
     },
   },
   {
@@ -52,7 +51,6 @@ export const CASE_LIBRARY: CaseEntry[] = [
         "秋季新品上市带动到店客流与小程序会员增长,拉新会员 10 万,新品销量占比超 30%",
       budget: "约 80 万元",
       duration: "6 周",
-      style: "douyin",
     },
   },
   {
@@ -73,7 +71,6 @@ export const CASE_LIBRARY: CaseEntry[] = [
         "双 11 前 2 个月完成种草蓄水,建立「修护有数据」的专业信任,提升天猫旗舰店加购与转化",
       budget: "约 300 万元",
       duration: "10 周",
-      style: "xiaohongshu",
     },
   },
   {
@@ -93,7 +90,6 @@ export const CASE_LIBRARY: CaseEntry[] = [
       objective: "首发 6 周内完成品类认知教育,推动京东/天猫首销破 2 万台",
       budget: "约 150 万元",
       duration: "6 周",
-      style: "bilibili",
     },
   },
   {
@@ -113,7 +109,6 @@ export const CASE_LIBRARY: CaseEntry[] = [
       objective: "上市季累计留资 3 万条,到店试驾 8000 组,建立「家用无焦虑」认知",
       budget: "约 600 万元",
       duration: "12 周",
-      style: "bilibili",
     },
   },
   {
@@ -133,7 +128,6 @@ export const CASE_LIBRARY: CaseEntry[] = [
       objective: "暑期档收集有效线索 5000 条,体验课到店率 40%,正价课转化率 25%",
       budget: "约 60 万元",
       duration: "8 周",
-      style: "xiaohongshu",
     },
   },
 ];
