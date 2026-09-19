@@ -162,7 +162,7 @@ export function ProposalView({
     "content",
     "plan",
     "competitors",
-    "translation",
+    ...(brief.language === "en" ? (["translation"] as GroupName[]) : []),
   ];
   const failedGroups = groups.filter((g) => groupOf(g) === "error");
   const anyLoading = groups.some((g) => groupOf(g) === "loading");
