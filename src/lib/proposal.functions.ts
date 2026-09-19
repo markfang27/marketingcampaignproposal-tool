@@ -145,7 +145,7 @@ export const generateContent = createServerFn({ method: "POST" })
       providerOptions: PROVIDER_OPTIONS,
     });
     try {
-      return await result.output;
+      return assertContent(await result.output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 返回内容格式异常,请重试本模块");
@@ -170,7 +170,7 @@ export const generatePlan = createServerFn({ method: "POST" })
       providerOptions: PROVIDER_OPTIONS,
     });
     try {
-      return await result.output;
+      return assertPlan(await result.output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 返回内容格式异常,请重试本模块");
