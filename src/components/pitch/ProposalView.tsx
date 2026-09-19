@@ -15,7 +15,7 @@ interface Props {
   strategy: StrategyResult | null;
   content: ContentResult | null;
   plan: PlanResult | null;
-  groupStatus: Record<GroupName, GroupStatus>;
+  groupStatus: Record<GroupName, GroupStatus | "idle">;
   onRetry: (group: GroupName) => void;
   onExport: () => void;
 }

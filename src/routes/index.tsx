@@ -64,11 +64,11 @@ function Workbench() {
     setGroupStatus((s) => ({ ...s, [group]: "loading" }));
     try {
       if (group === "strategy") {
-        setStrategy(await runStrategy(b));
+        setStrategy(await runStrategy({ data: b }));
       } else if (group === "content") {
-        setContent(await runContent(b));
+        setContent(await runContent({ data: b }));
       } else {
-        setPlan(await runPlan(b));
+        setPlan(await runPlan({ data: b }));
       }
       setGroupStatus((s) => ({ ...s, [group]: "done" }));
     } catch (error) {
