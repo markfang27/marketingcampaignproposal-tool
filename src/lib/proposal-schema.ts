@@ -15,6 +15,8 @@ export const BriefInputSchema = z.object({
   language: z.enum(["zh", "en"]).default("zh"),
   // 竞品资料来源:web=Firecrawl 抓取公开数据后归纳,ai=纯 AI 推断
   research: z.enum(["web", "ai"]).default("web"),
+  // 知识库中勾选的行业/市场资料要点,作为生成时的背景参考
+  knowledge: z.string().default(""),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;

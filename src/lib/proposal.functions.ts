@@ -44,7 +44,7 @@ function buildModel() {
 }
 
 function briefPrompt(b: BriefInput) {
-  return [
+  const lines = [
     "以下是客户 Brief:",
     `品牌名称:${b.brand}`,
     `所属行业:${b.industry}`,
@@ -53,7 +53,15 @@ function briefPrompt(b: BriefInput) {
     `营销诉求:${b.objective}`,
     `预算量级:${b.budget}`,
     `投放周期:${b.duration}`,
-  ].join("\n");
+  ];
+  if (b.knowledge?.trim()) {
+    lines.push(
+      "",
+      "客户提供的行业/市场资料要点(请优先采信这些事实,不要与之矛盾,也不要编造资料中没有的数据):",
+      b.knowledge.slice(0, 8000),
+    );
+  }
+  return lines.join("\n");
 }
 
 const PROVIDER_OPTIONS = {
