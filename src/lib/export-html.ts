@@ -1,8 +1,8 @@
+import { PROPOSAL_STYLES } from "@/lib/proposal-schema";
 import type {
   BriefInput,
   ContentResult,
   PlanResult,
-  PROPOSAL_STYLES,
   StrategyResult,
 } from "@/lib/proposal-schema";
 
