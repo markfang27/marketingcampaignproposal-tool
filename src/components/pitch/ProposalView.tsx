@@ -2,6 +2,7 @@ import { Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   SECTIONS,
+  PROPOSAL_STYLES,
   type BriefInput,
   type ContentResult,
   type GroupName,
@@ -117,7 +118,10 @@ export function ProposalView({
           {brief.brand} · 整合传播提案
         </h1>
         <p className="mt-3 text-[13px] text-muted-foreground">
-          {brief.industry} · 预算 {brief.budget} · 周期 {brief.duration}
+          {brief.industry} · 预算 {brief.budget} · 周期 {brief.duration} · 风格{" "}
+          <span className="font-medium text-brand">
+            {PROPOSAL_STYLES[brief.style].label}
+          </span>
         </p>
       </header>
 

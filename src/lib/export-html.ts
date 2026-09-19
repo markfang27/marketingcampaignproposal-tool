@@ -2,6 +2,7 @@ import type {
   BriefInput,
   ContentResult,
   PlanResult,
+  PROPOSAL_STYLES,
   StrategyResult,
 } from "@/lib/proposal-schema";
 
@@ -154,7 +155,7 @@ export function buildExportHtml({
   <header>
     <p class="kicker">INTEGRATED CAMPAIGN PROPOSAL</p>
     <h1 class="display">${esc(brief.brand)} · 整合传播提案</h1>
-    <p class="meta">${esc(brief.industry)} · 预算 ${esc(brief.budget)} · 周期 ${esc(brief.duration)} · ${today}</p>
+    <p class="meta">${esc(brief.industry)} · 预算 ${esc(brief.budget)} · 周期 ${esc(brief.duration)} · 风格 ${esc(PROPOSAL_STYLES[brief.style].label)} · ${today}</p>
   </header>
 
   <section>
