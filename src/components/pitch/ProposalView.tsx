@@ -416,9 +416,9 @@ export function ProposalView({
             <Button
               onClick={onExport}
               disabled={
-                groupStatus.strategy !== "done" ||
-                groupStatus.content !== "done" ||
-                groupStatus.plan !== "done"
+                groupOf("strategy") !== "done" ||
+                groupOf("content") !== "done" ||
+                groupOf("plan") !== "done"
               }
               className="h-11 rounded-none bg-foreground px-8 text-[15px] text-background hover:bg-foreground/85"
             >
