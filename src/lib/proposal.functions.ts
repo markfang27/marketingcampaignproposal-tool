@@ -57,12 +57,6 @@ const PROVIDER_OPTIONS = {
   },
 } as const;
 
-function briefFromStrategy(b: BriefInput) {
-  return createServerFn({ method: "POST" })
-    .inputValidator((input: unknown) => BriefInputSchema.parse(input))
-    .handler(async ({ data }) => data);
-}
-
 export const generateStrategy = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => BriefInputSchema.parse(input))
   .handler(async ({ data }) => {
