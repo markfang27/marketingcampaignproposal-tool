@@ -116,9 +116,10 @@ footer{position:absolute;right:6%;bottom:3.5%;color:var(--muted);font-size:clamp
   padding:12px;background:rgba(20,18,17,.92);color:#fff;font-size:13px;align-items:center;z-index:9}
 .bar button{background:#fff;color:#1a1a1a;border:0;padding:6px 14px;font-size:13px;cursor:pointer}
 .bar span{color:#cfc9c2}
-body.show .stage{padding:0;gap:0}
-body.show .slide{display:none;width:100vw;height:100vh;aspect-ratio:auto;box-shadow:none}
-body.show .slide.on{display:flex}
+body.show{background:#141211}
+body.show .stage{padding:0;gap:0;min-height:100vh;justify-content:center}
+body.show .slide{display:none}
+body.show .slide.on{display:flex;width:min(100vw,177.7vh);height:min(56.25vw,100vh);aspect-ratio:auto;box-shadow:none}
 @media print{
   body{background:#fff}
   .bar{display:none}
