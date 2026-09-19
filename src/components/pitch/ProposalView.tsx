@@ -101,8 +101,10 @@ export function ProposalView({
   onRetry,
   onExport,
 }: Props) {
-  const groupOf = (g: GroupName): GroupStatus =>
-    groupStatus[g] ?? "loading";
+  const groupOf = (g: GroupName): GroupStatus => {
+    const s = groupStatus[g];
+    return s === "done" || s === "error" ? s : "loading";
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
