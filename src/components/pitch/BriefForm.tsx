@@ -364,13 +364,13 @@ export function BriefForm({
   const images = media.filter((item) => item.kind === "image");
   const videos = media.filter((item) => item.kind === "video");
 
-  const signInPanel = (title: string, desc: string) => (
+  const signInPanel = (title: string, desc?: string) => (
     <div className="rounded-lg border border-dashed border-border px-5 py-12 text-center">
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-muted text-muted-foreground">
         <Lock className="h-5 w-5" />
       </div>
       <p className="mt-4 text-sm font-semibold text-foreground">{title}</p>
-      <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">{desc}</p>
+      {desc && <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">{desc}</p>}
       <Button type="button" className="mt-5" onClick={onSignIn}>去登录</Button>
     </div>
   );
@@ -587,10 +587,7 @@ export function BriefForm({
         {tab === "knowledge" && (
           <div className="p-5 sm:p-7">
             {!signedIn ? (
-              signInPanel(
-                "登录后即可建立你自己的知识库",
-                "行业报告、市场研究、品牌资料只属于你的账号，其他人看不到。",
-              )
+              signInPanel("登录后即可建立你自己的知识库")
             ) : (
               <div className="rounded-lg border border-border bg-background p-5">
                 <div className="flex items-center gap-2">
@@ -726,10 +723,7 @@ export function BriefForm({
         {tab === "assets" && (
           <div className="p-5 sm:p-7">
             {!signedIn ? (
-              signInPanel(
-                "登录后即可上传素材",
-                "图片和视频素材只属于你的账号，用于后续生成图文与视频内容。",
-              )
+              signInPanel("登录后即可上传素材")
             ) : (
               <div className="overflow-hidden rounded-lg border border-border bg-background">
                 {mediaError && <p className="px-5 pt-4 text-xs text-destructive">{mediaError}</p>}

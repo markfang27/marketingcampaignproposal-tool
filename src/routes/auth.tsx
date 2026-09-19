@@ -70,9 +70,6 @@ function AuthPage() {
         <h1 className="mt-1 font-display text-2xl font-semibold text-foreground">
           {mode === "signin" ? "登录工作台" : "创建账号"}
         </h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          登录后，你的提案记录和知识库资料只属于你自己，其他人看不到。
-        </p>
 
         <form className="mt-6 space-y-4" onSubmit={submit}>
           <div>

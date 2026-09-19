@@ -361,7 +361,7 @@ function Workbench() {
     <div className="mt-2 space-y-1">
       {!signedIn ? (
         <p className="px-2 py-4 text-xs leading-5 text-muted-foreground">
-          登录后，这里会保存你自己的提案记录，其他人看不到。
+          登录后，生成的方案会自动保存在这里。
         </p>
       ) : records.length === 0 ? (
         <p className="px-2 py-4 text-xs leading-5 text-muted-foreground">
