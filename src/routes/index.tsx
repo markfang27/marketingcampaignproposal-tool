@@ -281,11 +281,6 @@ function Workbench() {
         />
       )}
 
-      <footer className="border-t border-border py-6">
-        <p className="text-center text-[12px] text-muted-foreground">
-          Pitch Copilot · 求职作品 · 由 AI 驱动的营销提案工作台
-        </p>
-      </footer>
     </div>
   );
 }
