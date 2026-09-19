@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
+import { CASE_INDUSTRIES, CASE_LIBRARY } from "@/lib/case-library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,19 +22,7 @@ const EMPTY_BRIEF: BriefInput = {
   style: "xiaohongshu",
 };
 
-export const SAMPLE_BRIEF: BriefInput = {
-  brand: "轻汽 Sparkle",
-  industry: "饮料 / 新消费",
-  product:
-    "0 糖 0 卡气泡水,添加膳食纤维与电解质,主打「好喝不负担」,现有白桃、青柠、西柚三个口味,250ml 细长罐装",
-  audience:
-    "22-32 岁一二线城市年轻白领,注重身材管理与生活品质,习惯在小红书、抖音获取种草信息,高频购买便利店饮品",
-  objective:
-    "新品上市 3 个月内建立「健康快乐水」心智,提升品牌认知与电商转化",
-  budget: "约 200 万元",
-  duration: "8 周",
-  style: "xiaohongshu",
-};
+export const SAMPLE_BRIEF: BriefInput = CASE_LIBRARY[0]!.brief;
 
 const FIELDS: {
   name: Exclude<keyof BriefInput, "style">;
@@ -71,9 +60,13 @@ export function BriefForm({
   onSubmit: (brief: BriefInput) => void;
 }) {
   const [brief, setBrief] = useState<BriefInput>(EMPTY_BRIEF);
+  const [industry, setIndustry] = useState<string>(CASE_INDUSTRIES[0]!);
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
 
-  const set = (name: Exclude<keyof BriefInput, "style">, value: string) =>
+  const set = (name: Exclude<keyof BriefInput, "style">, value: string) => {
+    setActiveCaseId(null);
     setBrief((b) => ({ ...b, [name]: value }));
+  };
 
   const ready =
     brief.brand.trim() &&
@@ -101,9 +94,10 @@ export function BriefForm({
         </p>
         <div className="mt-8 border-l-2 border-brand/40 pl-4">
           <p className="text-sm leading-6 text-muted-foreground">
-            没有现成 Brief?点击右侧
-            <span className="text-foreground">「填入示例 Brief」</span>,
-            用一个新锐气泡水品牌的真实场景直接体验完整流程。
+            没有现成 Brief?在右侧
+            <span className="text-foreground">「客户案例库」</span>
+            里选一个行业与品牌,系统会自动填入该品牌常见的真实需求,
+            直接体验完整提案流程。
           </p>
         </div>
       </div>
@@ -128,6 +122,66 @@ export function BriefForm({
           >
             填入示例 Brief
           </Button>
+        </div>
+
+        <div className="border border-dashed border-border bg-muted/30 p-4">
+          <p className="text-[13px] font-medium text-foreground">客户案例库</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+            先选行业,再选品牌,自动填入该品牌常见的真实需求。
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {CASE_INDUSTRIES.map((ind) => {
+              const selected = industry === ind;
+              return (
+                <button
+                  key={ind}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setIndustry(ind)}
+                  className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${
+                    selected
+                      ? "border-brand bg-brand/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {ind}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {CASE_LIBRARY.filter((c) => c.industry === industry).map((c) => {
+              const selected = activeCaseId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    setBrief(c.brief);
+                    setActiveCaseId(c.id);
+                  }}
+                  className={`flex items-start gap-2 border px-3 py-2.5 text-left transition-colors ${
+                    selected
+                      ? "border-brand bg-brand/5"
+                      : "border-border bg-background hover:border-brand/50"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-foreground">
+                      {c.brand}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+                      {c.tagline}
+                    </span>
+                  </span>
+                  {selected && <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
