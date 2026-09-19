@@ -1,4 +1,3 @@
-import { PROPOSAL_STYLES } from "@/lib/proposal-schema";
 import type {
   BriefInput,
   ContentResult,
@@ -99,6 +98,11 @@ export function buildExportHtml({
   header .kicker { font-size: 12px; letter-spacing: .25em; color: #b0430f; }
   header h1 { font-size: 34px; margin-top: 12px; font-weight: 700; }
   header .meta { margin-top: 10px; font-size: 13px; color: #7d7466; }
+  .client { padding: 26px 0; border-bottom: 1px solid #e4ddcd; }
+  .client .kicker2 { font-size: 11px; letter-spacing: .25em; color: #b0430f; font-weight: 500; }
+  .client .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 16px; }
+  .client .label { font-size: 11px; letter-spacing: .15em; color: #7d7466; }
+  .client .value { font-family: "Noto Serif SC", serif; font-size: 16px; font-weight: 700; margin-top: 4px; }
   section { padding: 36px 0; border-bottom: 1px solid #e4ddcd; }
   section:last-of-type { border-bottom: none; }
   .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 22px; }
@@ -155,8 +159,17 @@ export function buildExportHtml({
   <header>
     <p class="kicker">INTEGRATED CAMPAIGN PROPOSAL</p>
     <h1 class="display">${esc(brief.brand)} · 整合传播提案</h1>
-    <p class="meta">${esc(brief.industry)} · 预算 ${esc(brief.budget)} · 周期 ${esc(brief.duration)} · 风格 ${esc((PROPOSAL_STYLES[brief.style] ?? PROPOSAL_STYLES.xiaohongshu).label)} · ${today}</p>
+    <p class="meta">${esc(brief.industry)} · 预算 ${esc(brief.budget)} · 周期 ${esc(brief.duration)} · ${today}</p>
   </header>
+
+  <div class="client">
+    <p class="kicker2">CLIENT INFORMATION · 客户信息</p>
+    <div class="grid">
+      <div><p class="label">客户名称</p><p class="value">${esc(brief.clientName || brief.brand)}</p></div>
+      <div><p class="label">项目预算</p><p class="value">${esc(brief.budget)}</p></div>
+      <div><p class="label">目标城市</p><p class="value">${esc(brief.city || "全国")}</p></div>
+    </div>
+  </div>
 
   <section>
     <div class="sec-head"><span class="num">01</span><h2 class="display">市场洞察</h2></div>
