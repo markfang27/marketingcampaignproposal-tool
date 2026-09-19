@@ -117,12 +117,12 @@ export async function downloadPptx(input: DeckInput) {
       const lines = s.bullets.flatMap((b) => {
         const head = [b.title, b.body].filter(Boolean).join(" — ");
         const rows = [
-          { text: head, options: { fontSize: 13, color: INK, bold: !b.body, bullet: true, fontFace: FONT, paraSpaceAfter: 3 } },
+          { text: head, options: { fontSize: 13, color: INK, bold: !b.body, bullet: true, fontFace: FONT, paraSpaceAfter: 3, breakLine: true } },
         ];
         if (b.en) {
           rows.push({
             text: b.en,
-            options: { fontSize: 10.5, color: MUTED, bold: false, bullet: false, fontFace: FONT, paraSpaceAfter: 7 },
+            options: { fontSize: 10.5, color: MUTED, bold: false, bullet: false, fontFace: FONT, paraSpaceAfter: 7, breakLine: true },
           });
         }
         return rows;
