@@ -60,21 +60,38 @@ function Workbench() {
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
 
+  const callGroup = async (group: GroupName, b: BriefInput) => {
+    if (group === "strategy") {
+      const r = await runStrategy({ data: b });
+      if (!r) throw new Error("AI 返回内容为空");
+      setStrategy(r);
+    } else if (group === "content") {
+      const r = await runContent({ data: b });
+      if (!r) throw new Error("AI 返回内容为空");
+      setContent(r);
+    } else {
+      const r = await runPlan({ data: b });
+      if (!r) throw new Error("AI 返回内容为空");
+      setPlan(r);
+    }
+  };
+
   const runGroup = async (group: GroupName, b: BriefInput) => {
     setGroupStatus((s) => ({ ...s, [group]: "loading" }));
-    try {
-      if (group === "strategy") {
-        setStrategy(await runStrategy({ data: b }));
-      } else if (group === "content") {
-        setContent(await runContent({ data: b }));
-      } else {
-        setPlan(await runPlan({ data: b }));
+    // 失败自动重试一次(AI 偶发空响应/格式异常),仍失败才标记错误交给用户手动重试
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await callGroup(group, b);
+        setGroupStatus((s) => ({ ...s, [group]: "done" }));
+        return;
+      } catch (error) {
+        console.error(`[${group}] generation failed (attempt ${attempt + 1})`, error);
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
       }
-      setGroupStatus((s) => ({ ...s, [group]: "done" }));
-    } catch (error) {
-      console.error(`[${group}] generation failed`, error);
-      setGroupStatus((s) => ({ ...s, [group]: "error" }));
     }
+    setGroupStatus((s) => ({ ...s, [group]: "error" }));
   };
 
   const start = async (b: BriefInput) => {

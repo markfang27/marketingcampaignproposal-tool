@@ -102,10 +102,23 @@ export function ProposalView({
   onRetry,
   onExport,
 }: Props) {
+  // 数据为空的「成功」按失败处理,避免渲染空白章节
   const groupOf = (g: GroupName): GroupStatus => {
     const s = groupStatus[g];
-    return s === "done" || s === "error" ? s : "loading";
+    if (s === "error") return "error";
+    if (s === "done") {
+      const data = g === "strategy" ? strategy : g === "content" ? content : plan;
+      return data ? "done" : "error";
+    }
+    return "loading";
   };
+
+  const failedGroups = (["strategy", "content", "plan"] as GroupName[]).filter(
+    (g) => groupOf(g) === "error",
+  );
+  const anyLoading = (["strategy", "content", "plan"] as GroupName[]).some(
+    (g) => groupOf(g) === "loading",
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -124,6 +137,24 @@ export function ProposalView({
           </span>
         </p>
       </header>
+
+      {failedGroups.length > 0 && !anyLoading && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border border-destructive/40 bg-destructive/5 px-5 py-4">
+          <p className="flex items-center gap-2 text-[13.5px] text-destructive">
+            <TriangleAlert className="h-4 w-4 shrink-0" />
+            有 {failedGroups.length} 组章节生成失败(AI 响应异常),已成功章节不受影响。
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => failedGroups.forEach((g) => onRetry(g))}
+            className="h-8 gap-1.5 border-destructive/40 text-[13px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            一键重试失败章节
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-12 pt-2 md:grid-cols-[190px_1fr] md:gap-16">
         {/* 章节导航 */}
@@ -385,9 +416,9 @@ export function ProposalView({
             <Button
               onClick={onExport}
               disabled={
-                groupStatus.strategy !== "done" ||
-                groupStatus.content !== "done" ||
-                groupStatus.plan !== "done"
+                groupOf("strategy") !== "done" ||
+                groupOf("content") !== "done" ||
+                groupOf("plan") !== "done"
               }
               className="h-11 rounded-none bg-foreground px-8 text-[15px] text-background hover:bg-foreground/85"
             >

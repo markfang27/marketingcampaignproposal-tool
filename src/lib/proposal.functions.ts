@@ -9,6 +9,9 @@ import {
   PROPOSAL_STYLES,
   StrategyOutputSchema,
   type BriefInput,
+  type ContentResult,
+  type PlanResult,
+  type StrategyResult,
 } from "./proposal-schema";
 
 const MODEL_ID = "openai/gpt-6-astra";
@@ -60,6 +63,43 @@ const PROVIDER_OPTIONS = {
   },
 } as const;
 
+// 空响应守卫:AI 返回内容为空或缺关键字段时抛错,触发上层重试而不是渲染空白
+const NON_EMPTY = "AI 返回内容为空,请重试";
+
+function assertStrategy(o: StrategyResult): StrategyResult {
+  if (
+    !o ||
+    !o.audienceProfile?.trim() ||
+    !o.keyInsight?.trim() ||
+    !o.bigIdeaTitle?.trim() ||
+    !o.campaignTheme?.trim() ||
+    !o.trends?.length ||
+    !o.competition?.length ||
+    !o.slogans?.length
+  ) {
+    throw new Error(NON_EMPTY);
+  }
+  return o;
+}
+
+function assertContent(o: ContentResult): ContentResult {
+  if (
+    !o ||
+    !o.platforms?.length ||
+    o.platforms.some((p) => !p.items?.length)
+  ) {
+    throw new Error(NON_EMPTY);
+  }
+  return o;
+}
+
+function assertPlan(o: PlanResult): PlanResult {
+  if (!o || !o.phases?.length || !o.kpis?.length) {
+    throw new Error(NON_EMPTY);
+  }
+  return o;
+}
+
 export const generateStrategy = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => BriefInputSchema.parse(input))
   .handler(async ({ data }) => {
@@ -82,7 +122,7 @@ export const generateStrategy = createServerFn({ method: "POST" })
       providerOptions: PROVIDER_OPTIONS,
     });
     try {
-      return await result.output;
+      return assertStrategy(await result.output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 返回内容格式异常,请重试本模块");
@@ -105,7 +145,7 @@ export const generateContent = createServerFn({ method: "POST" })
       providerOptions: PROVIDER_OPTIONS,
     });
     try {
-      return await result.output;
+      return assertContent(await result.output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 返回内容格式异常,请重试本模块");
@@ -130,7 +170,7 @@ export const generatePlan = createServerFn({ method: "POST" })
       providerOptions: PROVIDER_OPTIONS,
     });
     try {
-      return await result.output;
+      return assertPlan(await result.output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         throw new Error("AI 返回内容格式异常,请重试本模块");
