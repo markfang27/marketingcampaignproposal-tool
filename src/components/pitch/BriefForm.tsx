@@ -119,6 +119,66 @@ export function BriefForm({
           </Button>
         </div>
 
+        <div className="border border-dashed border-border bg-muted/30 p-4">
+          <p className="text-[13px] font-medium text-foreground">客户案例库</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+            先选行业,再选品牌,自动填入该品牌常见的真实需求。
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {CASE_INDUSTRIES.map((ind) => {
+              const selected = industry === ind;
+              return (
+                <button
+                  key={ind}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setIndustry(ind)}
+                  className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${
+                    selected
+                      ? "border-brand bg-brand/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {ind}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {CASE_LIBRARY.filter((c) => c.industry === industry).map((c) => {
+              const selected = activeCaseId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    setBrief(c.brief);
+                    setActiveCaseId(c.id);
+                  }}
+                  className={`flex items-start gap-2 border px-3 py-2.5 text-left transition-colors ${
+                    selected
+                      ? "border-brand bg-brand/5"
+                      : "border-border bg-background hover:border-brand/50"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-foreground">
+                      {c.brand}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+                      {c.tagline}
+                    </span>
+                  </span>
+                  {selected && <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
           {FIELDS.map((f) => (
             <div
