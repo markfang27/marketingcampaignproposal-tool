@@ -262,23 +262,126 @@ function Workbench() {
     setGroupStatus((s) => ({ ...s, [group]: "error" }));
   };
 
-  const persist = async (b: BriefInput) => {
-    if (!signedIn) return;
+  const snapshot = (b: ProposalBranding) => {
+    savedRef.current = {
+      strategy: resultsRef.current.strategy ?? null,
+      content: resultsRef.current.content ?? null,
+      plan: resultsRef.current.plan ?? null,
+      competitors: resultsRef.current.competitors ?? null,
+      branding: b,
+    };
+  };
+
+  const persist = async (b: BriefInput, id?: string | null) => {
+    if (!signedIn) return null;
     try {
-      await runSaveProposal({
-        data: {
-          brief: b,
-          strategy: resultsRef.current.strategy ?? null,
-          content: resultsRef.current.content ?? null,
-          plan: resultsRef.current.plan ?? null,
-          competitors: resultsRef.current.competitors ?? null,
-          sources,
-          translation,
-        },
+      const payload = {
+        brief: b,
+        strategy: resultsRef.current.strategy ?? null,
+        content: resultsRef.current.content ?? null,
+        plan: resultsRef.current.plan ?? null,
+        competitors: resultsRef.current.competitors ?? null,
+        sources,
+        translation,
+      };
+      const result = await runSaveProposal({
+        data: id ? { id, ...payload } : payload,
       });
+      setProposalId(result.id);
+      snapshot(branding);
       await refreshRecords();
+      return result.id;
     } catch (error) {
       console.error("save proposal failed", error);
+      return null;
+    }
+  };
+
+  const onStrategyEdit = (next: StrategyResult) => {
+    resultsRef.current.strategy = next;
+    setStrategy(next);
+    setDirty(true);
+  };
+  const onContentEdit = (next: ContentResult) => {
+    resultsRef.current.content = next;
+    setContent(next);
+    setDirty(true);
+  };
+  const onPlanEdit = (next: PlanResult) => {
+    resultsRef.current.plan = next;
+    setPlan(next);
+    setDirty(true);
+  };
+  const onCompetitorsEdit = (next: CompetitorResult) => {
+    resultsRef.current.competitors = next;
+    setCompetitors(next);
+    setDirty(true);
+  };
+  const onBrandingEdit = (next: ProposalBranding) => {
+    setBranding(next);
+    setDirty(true);
+  };
+
+  const saveEdits = async () => {
+    if (!brief) return;
+    setSavingEdit(true);
+    try {
+      const id = await persist(brief, proposalId);
+      // 已发布的提案同步更新对外页面
+      if (id && published) {
+        await runPublish({ data: { id, branding } });
+      }
+      setDirty(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const discardEdits = () => {
+    const saved = savedRef.current;
+    const cached: typeof resultsRef.current = {};
+    if (saved.strategy) cached.strategy = saved.strategy;
+    if (saved.content) cached.content = saved.content;
+    if (saved.plan) cached.plan = saved.plan;
+    if (saved.competitors) cached.competitors = saved.competitors;
+    resultsRef.current = cached;
+    setStrategy(saved.strategy);
+    setContent(saved.content);
+    setPlan(saved.plan);
+    setCompetitors(saved.competitors);
+    setBranding(saved.branding);
+    setDirty(false);
+  };
+
+  const publish = async () => {
+    if (!brief) return;
+    setPublishBusy(true);
+    try {
+      const id = proposalId ?? (await persist(brief, null));
+      if (!id) return;
+      if (dirty) await persist(brief, id);
+      const result = await runPublish({ data: { id, branding } });
+      setShareSlug(result.slug);
+      setPublished(true);
+      setDirty(false);
+      snapshot(branding);
+    } catch (error) {
+      console.error("publish failed", error);
+    } finally {
+      setPublishBusy(false);
+    }
+  };
+
+  const unpublish = async () => {
+    if (!proposalId) return;
+    setPublishBusy(true);
+    try {
+      await runUnpublish({ data: { id: proposalId } });
+      setPublished(false);
+    } catch (error) {
+      console.error("unpublish failed", error);
+    } finally {
+      setPublishBusy(false);
     }
   };
 
