@@ -395,6 +395,11 @@ function Workbench() {
     setTranslation({});
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
+    setProposalId(null);
+    setPublished(false);
+    setShareSlug(null);
+    setEditing(false);
+    setDirty(false);
     await runGroup("strategy", b);
     await runGroup("content", b);
     await runGroup("plan", b);
