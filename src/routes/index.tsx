@@ -24,10 +24,14 @@ import { buildSlidesHtml, openSlides } from "@/lib/export-slides-html";
 import {
   deleteProposal,
   getProposal,
+  listMediaImageUrls,
   listProposals,
+  publishProposal,
   saveProposal,
+  unpublishProposal,
   type ProposalSummary,
 } from "@/lib/library.functions";
+import type { MediaImage } from "@/components/pitch/ProposalView";
 import {
   generateCompetitors,
   researchCompetitors,
