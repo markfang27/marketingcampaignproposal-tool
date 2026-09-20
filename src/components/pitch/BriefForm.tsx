@@ -525,14 +525,15 @@ export function BriefForm({
               <Field label="营销目标 *" wide>
                 <Textarea rows={3} value={brief.objective} onChange={(e) => set("objective", e.target.value)} placeholder="希望达成的认知、种草、线索或转化目标" />
               </Field>
-              <Field label="预算量级">
-                <Input value={brief.budget} onChange={(e) => set("budget", e.target.value)} placeholder="例如：100-300 万元，或 80 万元左右" />
-              </Field>
-              <Field label="投放周期">
-                <Input value={brief.duration} onChange={(e) => set("duration", e.target.value)} placeholder="例如：8 周，或 618 大促前 45 天" />
-              </Field>
               <Field label="总预算">
-                <Input value={brief.totalBudget} onChange={(e) => set("totalBudget", e.target.value)} placeholder="例如：200 万元" />
+                <Input
+                  value={brief.totalBudget}
+                  onChange={(e) => {
+                    set("totalBudget", e.target.value);
+                    set("budget", e.target.value);
+                  }}
+                  placeholder="例如：200 万元"
+                />
               </Field>
               <Field label="提案语言">
                 <Select value={brief.language} onValueChange={(value: BriefInput["language"]) => set("language", value)}>
