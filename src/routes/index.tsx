@@ -112,6 +112,9 @@ function Workbench() {
   const runGetProposal = useServerFn(getProposal);
   const runSaveProposal = useServerFn(saveProposal);
   const runDeleteProposal = useServerFn(deleteProposal);
+  const runPublish = useServerFn(publishProposal);
+  const runUnpublish = useServerFn(unpublishProposal);
+  const runListMediaImages = useServerFn(listMediaImageUrls);
 
   const [signedIn, setSignedIn] = useState(false);
   const [brief, setBrief] = useState<BriefInput | null>(null);
@@ -129,6 +132,32 @@ function Workbench() {
   const [draftBrief, setDraftBrief] = useState<BriefInput | null>(null);
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
+  const [proposalId, setProposalId] = useState<string | null>(null);
+  const [branding, setBranding] = useState<ProposalBranding>({
+    ...EMPTY_BRANDING,
+  });
+  const [published, setPublished] = useState(false);
+  const [shareSlug, setShareSlug] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [mediaImages, setMediaImages] = useState<MediaImage[]>([]);
+
+  // 最近一次保存的内容,用于「放弃修改」
+  const savedRef = useRef<{
+    strategy: StrategyResult | null;
+    content: ContentResult | null;
+    plan: PlanResult | null;
+    competitors: CompetitorResult | null;
+    branding: ProposalBranding;
+  }>({
+    strategy: null,
+    content: null,
+    plan: null,
+    competitors: null,
+    branding: { ...EMPTY_BRANDING },
+  });
 
   // 已生成章节的最新值,供翻译步骤读取(避免闭包读到旧 state)
   const resultsRef = useRef<{
