@@ -231,7 +231,9 @@ export const listMediaImageUrls = createServerFn({ method: "GET" })
   .handler(
     async ({
       context,
-    }): Promise<{ id: string; filename: string; url: string }[]> => {
+    }): Promise<
+      { id: string; filename: string; url: string; storagePath: string }[]
+    > => {
       const { data, error } = await context.supabase
         .from("media_assets")
         .select("id, filename, storage_path")
