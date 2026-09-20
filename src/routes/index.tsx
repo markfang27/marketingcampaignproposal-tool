@@ -40,9 +40,11 @@ import {
   generateStrategy,
   translateGroup,
 } from "@/lib/proposal.functions";
+import { EMPTY_BRANDING } from "@/lib/proposal-schema";
 import type {
   Bilingual,
   BriefInput,
+  ProposalBranding,
   CompetitorResult,
   CompetitorSource,
   ContentResult,
