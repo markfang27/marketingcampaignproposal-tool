@@ -535,6 +535,9 @@ export function BriefForm({
                   placeholder="例如：200 万元"
                 />
               </Field>
+              <Field label="投放周期">
+                <Input value={brief.duration} onChange={(e) => set("duration", e.target.value)} placeholder="例如：8 周，或 618 大促前 45 天" />
+              </Field>
               <Field label="提案语言">
                 <Select value={brief.language} onValueChange={(value: BriefInput["language"]) => set("language", value)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
