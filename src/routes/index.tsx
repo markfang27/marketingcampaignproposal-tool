@@ -425,6 +425,12 @@ function Workbench() {
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
     setDraftBrief(null);
+    setProposalId(null);
+    setBranding({ ...EMPTY_BRANDING });
+    setPublished(false);
+    setShareSlug(null);
+    setEditing(false);
+    setDirty(false);
     window.scrollTo({ top: 0 });
   };
 
