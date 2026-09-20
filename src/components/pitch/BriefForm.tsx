@@ -528,16 +528,10 @@ export function BriefForm({
                 <Textarea rows={3} value={brief.objective} onChange={(e) => set("objective", e.target.value)} placeholder="希望达成的认知、种草、线索或转化目标" />
               </Field>
               <Field label="预算量级">
-                <Select value={brief.budget} onValueChange={(value) => set("budget", value)}>
-                  <SelectTrigger><SelectValue placeholder="选择预算" /></SelectTrigger>
-                  <SelectContent>{BUDGETS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
+                <Input value={brief.budget} onChange={(e) => set("budget", e.target.value)} placeholder="例如：100-300 万元，或 80 万元左右" />
               </Field>
               <Field label="投放周期">
-                <Select value={brief.duration} onValueChange={(value) => set("duration", value)}>
-                  <SelectTrigger><SelectValue placeholder="选择周期" /></SelectTrigger>
-                  <SelectContent>{DURATIONS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
+                <Input value={brief.duration} onChange={(e) => set("duration", e.target.value)} placeholder="例如：8 周，或 618 大促前 45 天" />
               </Field>
               <Field label="总预算">
                 <Input value={brief.totalBudget} onChange={(e) => set("totalBudget", e.target.value)} placeholder="例如：200 万元" />
