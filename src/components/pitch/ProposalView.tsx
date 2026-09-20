@@ -1294,7 +1294,7 @@ export function ProposalView({
                   <br />
                   PPT:下载 16:9 幻灯片文件,可在 PowerPoint / Keynote 里继续改。
                   <br />
-                  网页放映:新标签页里按 ← → 翻页,面试现场无需 Office 也能演示。
+                  网页放映:新标签页里按 ← → 翻页。
                 </p>
               </div>
 
