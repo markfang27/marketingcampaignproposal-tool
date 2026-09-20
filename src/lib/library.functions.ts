@@ -55,6 +55,7 @@ export interface MediaAsset {
 const ID_INPUT = z.object({ id: z.string() });
 
 const SAVE_INPUT = z.object({
+  id: z.string().optional(),
   brief: BriefInputSchema,
   strategy: z.unknown().nullable(),
   content: z.unknown().nullable(),
