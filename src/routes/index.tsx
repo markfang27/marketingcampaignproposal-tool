@@ -191,6 +191,9 @@ function Workbench() {
       return;
     }
     void refreshRecords();
+    void runListMediaImages()
+      .then((list) => setMediaImages(list ?? []))
+      .catch((error) => console.error("list media images failed", error));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn]);
 
