@@ -690,6 +690,25 @@ function Workbench() {
               onExportSlides={exportSlides}
               onExportPptx={exportPptx}
               pptxBusy={pptxBusy}
+              editing={editing}
+              onEditingChange={setEditing}
+              dirty={dirty}
+              saving={savingEdit}
+              onSave={() => void saveEdits()}
+              onDiscard={discardEdits}
+              onStrategyChange={onStrategyEdit}
+              onContentChange={onContentEdit}
+              onPlanChange={onPlanEdit}
+              onCompetitorsChange={onCompetitorsEdit}
+              branding={branding}
+              onBrandingChange={onBrandingEdit}
+              mediaImages={mediaImages}
+              published={published}
+              shareSlug={shareSlug}
+              publishBusy={publishBusy}
+              canPublish={signedIn}
+              onPublish={() => void publish()}
+              onUnpublish={() => void unpublish()}
             />
           )}
         </div>
