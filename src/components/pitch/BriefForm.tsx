@@ -71,9 +71,6 @@ const INDUSTRIES = [
   "互联网 / 软件",
   "金融 / 专业服务",
 ];
-const CITIES = ["全国", "北京", "上海", "广州、深圳", "一二线城市", "新一线城市"];
-const BUDGETS = ["50 万元以内", "50-100 万元", "100-300 万元", "300-500 万元", "500 万元以上"];
-const DURATIONS = ["4 周", "6 周", "8 周", "10 周", "12 周"];
 const KNOWLEDGE_CATEGORIES = ["行业资料", "市场研究", "品牌资料", "竞品资料"];
 const DOC_FORMATS = ["DOC", "DOCX", "PPT", "PPTX", "XLS", "XLSX", "PDF", "TXT", "MD"];
 
@@ -493,16 +490,31 @@ export function BriefForm({
                 <Input value={brief.clientName} onChange={(e) => set("clientName", e.target.value)} placeholder="输入客户公司全称" />
               </Field>
               <Field label="所属行业">
-                <Select value={brief.industry} onValueChange={(value) => set("industry", value)}>
+                <Select
+                  value={!brief.industry ? "" : INDUSTRIES.includes(brief.industry) ? brief.industry : "其他"}
+                  onValueChange={(value) => set("industry", value === "其他" ? " " : value)}
+                >
                   <SelectTrigger><SelectValue placeholder="选择行业" /></SelectTrigger>
-                  <SelectContent>{INDUSTRIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {INDUSTRIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                    <SelectItem value="其他">其他（自定义填写）</SelectItem>
+                  </SelectContent>
                 </Select>
+                {!INDUSTRIES.includes(brief.industry) && brief.industry !== "" && (
+                  <Input
+                    className="mt-2"
+                    value={brief.industry.trim()}
+                    onChange={(e) => set("industry", e.target.value)}
+                    placeholder="填写具体行业，例如：宠物用品、户外装备"
+                  />
+                )}
               </Field>
               <Field label="目标城市">
-                <Select value={brief.city} onValueChange={(value) => set("city", value)}>
-                  <SelectTrigger><SelectValue placeholder="选择主要区域" /></SelectTrigger>
-                  <SelectContent>{CITIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
+                <Input
+                  value={brief.city}
+                  onChange={(e) => set("city", e.target.value)}
+                  placeholder="填写城市，如：成都、杭州，或全国"
+                />
               </Field>
               <Field label="产品 / 服务 *" wide>
                 <Textarea rows={3} value={brief.product} onChange={(e) => set("product", e.target.value)} placeholder="产品特点、核心卖点、规格与价格带" />
@@ -514,16 +526,10 @@ export function BriefForm({
                 <Textarea rows={3} value={brief.objective} onChange={(e) => set("objective", e.target.value)} placeholder="希望达成的认知、种草、线索或转化目标" />
               </Field>
               <Field label="预算量级">
-                <Select value={brief.budget} onValueChange={(value) => set("budget", value)}>
-                  <SelectTrigger><SelectValue placeholder="选择预算" /></SelectTrigger>
-                  <SelectContent>{BUDGETS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
+                <Input value={brief.budget} onChange={(e) => set("budget", e.target.value)} placeholder="例如：100-300 万元，或 80 万元左右" />
               </Field>
               <Field label="投放周期">
-                <Select value={brief.duration} onValueChange={(value) => set("duration", value)}>
-                  <SelectTrigger><SelectValue placeholder="选择周期" /></SelectTrigger>
-                  <SelectContent>{DURATIONS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
+                <Input value={brief.duration} onChange={(e) => set("duration", e.target.value)} placeholder="例如：8 周，或 618 大促前 45 天" />
               </Field>
               <Field label="总预算">
                 <Input value={brief.totalBudget} onChange={(e) => set("totalBudget", e.target.value)} placeholder="例如：200 万元" />

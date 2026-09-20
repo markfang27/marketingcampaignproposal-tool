@@ -54,6 +54,9 @@ function briefPrompt(b: BriefInput) {
     `预算量级:${b.budget}`,
     `投放周期:${b.duration}`,
   ];
+  if (b.city?.trim()) {
+    lines.push(`目标城市:${b.city.trim()}(请结合该城市的人群特征、消费场景与本地媒介环境来写洞察与执行动作)`);
+  }
   if (b.knowledge?.trim()) {
     lines.push(
       "",
