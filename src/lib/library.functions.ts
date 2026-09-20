@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { BriefInputSchema } from "./proposal-schema";
+import { BrandingSchema, BriefInputSchema, EMPTY_BRANDING } from "./proposal-schema";
 import type {
   Bilingual,
   BriefInput,
@@ -9,6 +9,7 @@ import type {
   CompetitorSource,
   ContentResult,
   PlanResult,
+  ProposalBranding,
   StrategyResult,
 } from "./proposal-schema";
 
@@ -27,6 +28,9 @@ export interface SavedProposal extends ProposalSummary {
   competitors: CompetitorResult | null;
   sources: CompetitorSource[];
   translation: Bilingual;
+  branding: ProposalBranding;
+  published: boolean;
+  shareSlug: string | null;
 }
 
 export interface KnowledgeItem {
