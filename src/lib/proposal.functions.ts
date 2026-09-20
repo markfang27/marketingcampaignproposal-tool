@@ -51,7 +51,7 @@ function briefPrompt(b: BriefInput) {
     `产品/服务简介:${b.product}`,
     `目标人群:${b.audience}`,
     `营销诉求:${b.objective}`,
-    `预算量级:${b.budget}`,
+    `总预算:${b.budget || b.totalBudget}`,
     `投放周期:${b.duration}`,
   ];
   if (b.city?.trim()) {

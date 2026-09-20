@@ -289,7 +289,7 @@ export function buildExportHtml({
       <thead><tr><th style="width:140px">阶段</th><th style="width:200px">目标</th><th>关键动作</th></tr></thead>
       <tbody>${phases}</tbody>
     </table>
-    <p class="budget-head">预算分配${brief.totalBudget ? ` · 总预算 ${esc(brief.totalBudget)}` : ""}</p>
+    <p class="budget-head">预算分配</p>
     <table>
       <thead><tr><th style="width:120px">项目</th><th style="width:80px">占比</th><th style="width:150px">金额估算</th><th>分配理由</th></tr></thead>
       <tbody>${budgetRows}</tbody>
