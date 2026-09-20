@@ -71,8 +71,6 @@ const INDUSTRIES = [
   "互联网 / 软件",
   "金融 / 专业服务",
 ];
-const BUDGETS = ["50 万元以内", "50-100 万元", "100-300 万元", "300-500 万元", "500 万元以上"];
-const DURATIONS = ["4 周", "6 周", "8 周", "10 周", "12 周"];
 const KNOWLEDGE_CATEGORIES = ["行业资料", "市场研究", "品牌资料", "竞品资料"];
 const DOC_FORMATS = ["DOC", "DOCX", "PPT", "PPTX", "XLS", "XLSX", "PDF", "TXT", "MD"];
 
