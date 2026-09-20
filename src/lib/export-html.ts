@@ -238,10 +238,9 @@ export function buildExportHtml({
 
   <div class="client">
     <p class="kicker2">CLIENT INFORMATION · 客户信息</p>
-    <div class="grid${brief.totalBudget ? " cols4" : ""}">
+    <div class="grid">
       <div><p class="label">客户名称</p><p class="value">${esc(brief.clientName || brief.brand)}</p></div>
-      <div><p class="label">项目预算</p><p class="value">${esc(brief.budget)}</p></div>
-      ${brief.totalBudget ? `<div><p class="label">总预算</p><p class="value">${esc(brief.totalBudget)}</p></div>` : ""}
+      <div><p class="label">总预算</p><p class="value">${esc(brief.budget || brief.totalBudget)}</p></div>
       <div><p class="label">目标城市</p><p class="value">${esc(brief.city || "全国")}</p></div>
     </div>
   </div>
