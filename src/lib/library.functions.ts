@@ -242,7 +242,12 @@ export const listMediaImageUrls = createServerFn({ method: "GET" })
         .limit(40);
       if (error) throw new Error(error.message);
       const rows = data ?? [];
-      const out: { id: string; filename: string; url: string }[] = [];
+      const out: {
+        id: string;
+        filename: string;
+        url: string;
+        storagePath: string;
+      }[] = [];
       for (const row of rows) {
         const { data: signed } = await context.supabase.storage
           .from("media-assets")
@@ -252,6 +257,7 @@ export const listMediaImageUrls = createServerFn({ method: "GET" })
             id: row.id,
             filename: row.filename,
             url: signed.signedUrl,
+            storagePath: row.storage_path,
           });
         }
       }
