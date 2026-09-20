@@ -452,6 +452,19 @@ function Workbench() {
       setTranslation(saved.translation);
       setBrief(saved.brief);
       setGroupStatus({ ...DONE });
+      setProposalId(saved.id);
+      setBranding(saved.branding);
+      setPublished(saved.published);
+      setShareSlug(saved.shareSlug);
+      setEditing(false);
+      setDirty(false);
+      savedRef.current = {
+        strategy: saved.strategy,
+        content: saved.content,
+        plan: saved.plan,
+        competitors: saved.competitors,
+        branding: saved.branding,
+      };
       setMobileSidebar(false);
       window.scrollTo({ top: 0 });
     } catch (error) {
