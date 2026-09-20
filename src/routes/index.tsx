@@ -24,10 +24,14 @@ import { buildSlidesHtml, openSlides } from "@/lib/export-slides-html";
 import {
   deleteProposal,
   getProposal,
+  listMediaImageUrls,
   listProposals,
+  publishProposal,
   saveProposal,
+  unpublishProposal,
   type ProposalSummary,
 } from "@/lib/library.functions";
+import type { MediaImage } from "@/components/pitch/ProposalView";
 import {
   generateCompetitors,
   researchCompetitors,
@@ -36,9 +40,11 @@ import {
   generateStrategy,
   translateGroup,
 } from "@/lib/proposal.functions";
+import { EMPTY_BRANDING } from "@/lib/proposal-schema";
 import type {
   Bilingual,
   BriefInput,
+  ProposalBranding,
   CompetitorResult,
   CompetitorSource,
   ContentResult,
@@ -106,6 +112,9 @@ function Workbench() {
   const runGetProposal = useServerFn(getProposal);
   const runSaveProposal = useServerFn(saveProposal);
   const runDeleteProposal = useServerFn(deleteProposal);
+  const runPublish = useServerFn(publishProposal);
+  const runUnpublish = useServerFn(unpublishProposal);
+  const runListMediaImages = useServerFn(listMediaImageUrls);
 
   const [signedIn, setSignedIn] = useState(false);
   const [brief, setBrief] = useState<BriefInput | null>(null);
@@ -123,6 +132,32 @@ function Workbench() {
   const [draftBrief, setDraftBrief] = useState<BriefInput | null>(null);
   const [groupStatus, setGroupStatus] =
     useState<Record<GroupName, GroupStatus | "idle">>(IDLE);
+  const [proposalId, setProposalId] = useState<string | null>(null);
+  const [branding, setBranding] = useState<ProposalBranding>({
+    ...EMPTY_BRANDING,
+  });
+  const [published, setPublished] = useState(false);
+  const [shareSlug, setShareSlug] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [mediaImages, setMediaImages] = useState<MediaImage[]>([]);
+
+  // 最近一次保存的内容,用于「放弃修改」
+  const savedRef = useRef<{
+    strategy: StrategyResult | null;
+    content: ContentResult | null;
+    plan: PlanResult | null;
+    competitors: CompetitorResult | null;
+    branding: ProposalBranding;
+  }>({
+    strategy: null,
+    content: null,
+    plan: null,
+    competitors: null,
+    branding: { ...EMPTY_BRANDING },
+  });
 
   // 已生成章节的最新值,供翻译步骤读取(避免闭包读到旧 state)
   const resultsRef = useRef<{
@@ -156,6 +191,9 @@ function Workbench() {
       return;
     }
     void refreshRecords();
+    void runListMediaImages()
+      .then((list) => setMediaImages(list ?? []))
+      .catch((error) => console.error("list media images failed", error));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn]);
 
@@ -224,23 +262,126 @@ function Workbench() {
     setGroupStatus((s) => ({ ...s, [group]: "error" }));
   };
 
-  const persist = async (b: BriefInput) => {
-    if (!signedIn) return;
+  const snapshot = (b: ProposalBranding) => {
+    savedRef.current = {
+      strategy: resultsRef.current.strategy ?? null,
+      content: resultsRef.current.content ?? null,
+      plan: resultsRef.current.plan ?? null,
+      competitors: resultsRef.current.competitors ?? null,
+      branding: b,
+    };
+  };
+
+  const persist = async (b: BriefInput, id?: string | null) => {
+    if (!signedIn) return null;
     try {
-      await runSaveProposal({
-        data: {
-          brief: b,
-          strategy: resultsRef.current.strategy ?? null,
-          content: resultsRef.current.content ?? null,
-          plan: resultsRef.current.plan ?? null,
-          competitors: resultsRef.current.competitors ?? null,
-          sources,
-          translation,
-        },
+      const payload = {
+        brief: b,
+        strategy: resultsRef.current.strategy ?? null,
+        content: resultsRef.current.content ?? null,
+        plan: resultsRef.current.plan ?? null,
+        competitors: resultsRef.current.competitors ?? null,
+        sources,
+        translation,
+      };
+      const result = await runSaveProposal({
+        data: id ? { id, ...payload } : payload,
       });
+      setProposalId(result.id);
+      snapshot(branding);
       await refreshRecords();
+      return result.id;
     } catch (error) {
       console.error("save proposal failed", error);
+      return null;
+    }
+  };
+
+  const onStrategyEdit = (next: StrategyResult) => {
+    resultsRef.current.strategy = next;
+    setStrategy(next);
+    setDirty(true);
+  };
+  const onContentEdit = (next: ContentResult) => {
+    resultsRef.current.content = next;
+    setContent(next);
+    setDirty(true);
+  };
+  const onPlanEdit = (next: PlanResult) => {
+    resultsRef.current.plan = next;
+    setPlan(next);
+    setDirty(true);
+  };
+  const onCompetitorsEdit = (next: CompetitorResult) => {
+    resultsRef.current.competitors = next;
+    setCompetitors(next);
+    setDirty(true);
+  };
+  const onBrandingEdit = (next: ProposalBranding) => {
+    setBranding(next);
+    setDirty(true);
+  };
+
+  const saveEdits = async () => {
+    if (!brief) return;
+    setSavingEdit(true);
+    try {
+      const id = await persist(brief, proposalId);
+      // 已发布的提案同步更新对外页面
+      if (id && published) {
+        await runPublish({ data: { id, branding } });
+      }
+      setDirty(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const discardEdits = () => {
+    const saved = savedRef.current;
+    const cached: typeof resultsRef.current = {};
+    if (saved.strategy) cached.strategy = saved.strategy;
+    if (saved.content) cached.content = saved.content;
+    if (saved.plan) cached.plan = saved.plan;
+    if (saved.competitors) cached.competitors = saved.competitors;
+    resultsRef.current = cached;
+    setStrategy(saved.strategy);
+    setContent(saved.content);
+    setPlan(saved.plan);
+    setCompetitors(saved.competitors);
+    setBranding(saved.branding);
+    setDirty(false);
+  };
+
+  const publish = async () => {
+    if (!brief) return;
+    setPublishBusy(true);
+    try {
+      const id = proposalId ?? (await persist(brief, null));
+      if (!id) return;
+      if (dirty) await persist(brief, id);
+      const result = await runPublish({ data: { id, branding } });
+      setShareSlug(result.slug);
+      setPublished(true);
+      setDirty(false);
+      snapshot(branding);
+    } catch (error) {
+      console.error("publish failed", error);
+    } finally {
+      setPublishBusy(false);
+    }
+  };
+
+  const unpublish = async () => {
+    if (!proposalId) return;
+    setPublishBusy(true);
+    try {
+      await runUnpublish({ data: { id: proposalId } });
+      setPublished(false);
+    } catch (error) {
+      console.error("unpublish failed", error);
+    } finally {
+      setPublishBusy(false);
     }
   };
 
@@ -254,6 +395,11 @@ function Workbench() {
     setTranslation({});
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
+    setProposalId(null);
+    setPublished(false);
+    setShareSlug(null);
+    setEditing(false);
+    setDirty(false);
     await runGroup("strategy", b);
     await runGroup("content", b);
     await runGroup("plan", b);
@@ -279,6 +425,12 @@ function Workbench() {
     resultsRef.current = {};
     setGroupStatus({ ...IDLE });
     setDraftBrief(null);
+    setProposalId(null);
+    setBranding({ ...EMPTY_BRANDING });
+    setPublished(false);
+    setShareSlug(null);
+    setEditing(false);
+    setDirty(false);
     window.scrollTo({ top: 0 });
   };
 
@@ -300,6 +452,19 @@ function Workbench() {
       setTranslation(saved.translation);
       setBrief(saved.brief);
       setGroupStatus({ ...DONE });
+      setProposalId(saved.id);
+      setBranding(saved.branding);
+      setPublished(saved.published);
+      setShareSlug(saved.shareSlug);
+      setEditing(false);
+      setDirty(false);
+      savedRef.current = {
+        strategy: saved.strategy,
+        content: saved.content,
+        plan: saved.plan,
+        competitors: saved.competitors,
+        branding: saved.branding,
+      };
       setMobileSidebar(false);
       window.scrollTo({ top: 0 });
     } catch (error) {
@@ -525,6 +690,25 @@ function Workbench() {
               onExportSlides={exportSlides}
               onExportPptx={exportPptx}
               pptxBusy={pptxBusy}
+              editing={editing}
+              onEditingChange={setEditing}
+              dirty={dirty}
+              saving={savingEdit}
+              onSave={() => void saveEdits()}
+              onDiscard={discardEdits}
+              onStrategyChange={onStrategyEdit}
+              onContentChange={onContentEdit}
+              onPlanChange={onPlanEdit}
+              onCompetitorsChange={onCompetitorsEdit}
+              branding={branding}
+              onBrandingChange={onBrandingEdit}
+              mediaImages={mediaImages}
+              published={published}
+              shareSlug={shareSlug}
+              publishBusy={publishBusy}
+              canPublish={signedIn}
+              onPublish={() => void publish()}
+              onUnpublish={() => void unpublish()}
             />
           )}
         </div>

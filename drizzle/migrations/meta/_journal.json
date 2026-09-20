@@ -15,6 +15,13 @@
       "when": 1789835428986,
       "tag": "0001_add_media_assets_and_file_size",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789888865196,
+      "tag": "0002_add_proposal_publishing",
+      "breakpoints": true
     }
   ]
 }

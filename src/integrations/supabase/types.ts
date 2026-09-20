@@ -83,6 +83,7 @@ export type Database = {
       proposals: {
         Row: {
           brand: string
+          branding: Json
           brief: Json
           competitors: Json | null
           content: Json | null
@@ -90,13 +91,17 @@ export type Database = {
           id: string
           industry: string
           plan: Json | null
+          published: boolean
+          share_slug: string | null
           sources: Json
           strategy: Json | null
           translation: Json
+          updated_at: string
           user_id: string
         }
         Insert: {
           brand: string
+          branding?: Json
           brief: Json
           competitors?: Json | null
           content?: Json | null
@@ -104,13 +109,17 @@ export type Database = {
           id?: string
           industry?: string
           plan?: Json | null
+          published?: boolean
+          share_slug?: string | null
           sources?: Json
           strategy?: Json | null
           translation?: Json
+          updated_at?: string
           user_id: string
         }
         Update: {
           brand?: string
+          branding?: Json
           brief?: Json
           competitors?: Json | null
           content?: Json | null
@@ -118,9 +127,12 @@ export type Database = {
           id?: string
           industry?: string
           plan?: Json | null
+          published?: boolean
+          share_slug?: string | null
           sources?: Json
           strategy?: Json | null
           translation?: Json
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

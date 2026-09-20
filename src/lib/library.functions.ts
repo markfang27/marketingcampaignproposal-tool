@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { BriefInputSchema } from "./proposal-schema";
+import { BrandingSchema, BriefInputSchema, EMPTY_BRANDING } from "./proposal-schema";
 import type {
   Bilingual,
   BriefInput,
@@ -9,6 +9,7 @@ import type {
   CompetitorSource,
   ContentResult,
   PlanResult,
+  ProposalBranding,
   StrategyResult,
 } from "./proposal-schema";
 
@@ -27,6 +28,9 @@ export interface SavedProposal extends ProposalSummary {
   competitors: CompetitorResult | null;
   sources: CompetitorSource[];
   translation: Bilingual;
+  branding: ProposalBranding;
+  published: boolean;
+  shareSlug: string | null;
 }
 
 export interface KnowledgeItem {
@@ -51,6 +55,7 @@ export interface MediaAsset {
 const ID_INPUT = z.object({ id: z.string() });
 
 const SAVE_INPUT = z.object({
+  id: z.string().optional(),
   brief: BriefInputSchema,
   strategy: z.unknown().nullable(),
   content: z.unknown().nullable(),
@@ -109,6 +114,9 @@ export const getProposal = createServerFn({ method: "POST" })
       competitors: (row.competitors as CompetitorResult | null) ?? null,
       sources: (row.sources as CompetitorSource[] | null) ?? [],
       translation: (row.translation as Bilingual | null) ?? {},
+      branding: parseBranding(row.branding),
+      published: Boolean(row.published),
+      shareSlug: row.share_slug ?? null,
     };
   });
 
@@ -117,32 +125,145 @@ export const saveProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SAVE_INPUT.parse(input))
   .handler(async ({ context, data }): Promise<{ id: string }> => {
+    const payload = {
+      brand: data.brief.brand,
+      industry: data.brief.industry || "未分类",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      brief: data.brief as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      strategy: (data.strategy ?? null) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      content: (data.content ?? null) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      plan: (data.plan ?? null) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      competitors: (data.competitors ?? null) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sources: (data.sources ?? []) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      translation: (data.translation ?? {}) as any,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (data.id) {
+      const { data: row, error } = await context.supabase
+        .from("proposals")
+        .update(payload)
+        .eq("id", data.id)
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      return { id: row.id };
+    }
+
     const { data: row, error } = await context.supabase
       .from("proposals")
-      .insert({
-        user_id: context.userId,
-        brand: data.brief.brand,
-        industry: data.brief.industry || "未分类",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        brief: data.brief as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        strategy: (data.strategy ?? null) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        content: (data.content ?? null) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plan: (data.plan ?? null) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        competitors: (data.competitors ?? null) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        sources: (data.sources ?? []) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        translation: (data.translation ?? {}) as any,
-      })
+      .insert({ user_id: context.userId, ...payload })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
     return { id: row.id };
   });
+
+const PUBLISH_INPUT = z.object({
+  id: z.string(),
+  branding: BrandingSchema,
+});
+
+function parseBranding(value: unknown): ProposalBranding {
+  const parsed = BrandingSchema.safeParse(value ?? {});
+  return parsed.success ? parsed.data : { ...EMPTY_BRANDING };
+}
+
+function makeSlug(): string {
+  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+/** 发布(或更新)提案的对外分享页面,返回分享链接的 slug。 */
+export const publishProposal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => PUBLISH_INPUT.parse(input))
+  .handler(async ({ context, data }): Promise<{ slug: string }> => {
+    const { data: existing, error: readError } = await context.supabase
+      .from("proposals")
+      .select("share_slug")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!existing) throw new Error("没有找到这份提案");
+
+    const slug = existing.share_slug ?? makeSlug();
+    const { error } = await context.supabase
+      .from("proposals")
+      .update({
+        share_slug: slug,
+        published: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        branding: data.branding as any,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { slug };
+  });
+
+/** 取消发布:分享链接立即失效。 */
+export const unpublishProposal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ID_INPUT.parse(input))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase
+      .from("proposals")
+      .update({ published: false, updated_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** 素材库图片的临时预览地址(编辑提案时挑图用)。 */
+export const listMediaImageUrls = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(
+    async ({
+      context,
+    }): Promise<
+      { id: string; filename: string; url: string; storagePath: string }[]
+    > => {
+      const { data, error } = await context.supabase
+        .from("media_assets")
+        .select("id, filename, storage_path")
+        .eq("kind", "image")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      if (error) throw new Error(error.message);
+      const rows = data ?? [];
+      const out: {
+        id: string;
+        filename: string;
+        url: string;
+        storagePath: string;
+      }[] = [];
+      for (const row of rows) {
+        const { data: signed } = await context.supabase.storage
+          .from("media-assets")
+          .createSignedUrl(row.storage_path, 60 * 60);
+        if (signed?.signedUrl) {
+          out.push({
+            id: row.id,
+            filename: row.filename,
+            url: signed.signedUrl,
+            storagePath: row.storage_path,
+          });
+        }
+      }
+      return out;
+    },
+  );
 
 /** 删除当前用户的一条提案记录。 */
 export const deleteProposal = createServerFn({ method: "POST" })
