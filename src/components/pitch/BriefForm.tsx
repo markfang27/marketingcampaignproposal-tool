@@ -393,7 +393,7 @@ export function BriefForm({
           <p className="text-xs font-semibold text-primary">CAMPAIGN WORKSPACE</p>
           <h1 className="mt-1 font-display text-2xl font-semibold text-foreground">创建营销提案</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            填写关键信息，或上传客户资料自动识别，AI 将生成七个完整提案章节。
+            填写关键信息，或上传客户资料自动识别，AI 五分钟内将生成七个完整提案章节。
           </p>
         </header>
 
