@@ -493,16 +493,31 @@ export function BriefForm({
                 <Input value={brief.clientName} onChange={(e) => set("clientName", e.target.value)} placeholder="输入客户公司全称" />
               </Field>
               <Field label="所属行业">
-                <Select value={brief.industry} onValueChange={(value) => set("industry", value)}>
+                <Select
+                  value={!brief.industry ? "" : INDUSTRIES.includes(brief.industry) ? brief.industry : "其他"}
+                  onValueChange={(value) => set("industry", value === "其他" ? " " : value)}
+                >
                   <SelectTrigger><SelectValue placeholder="选择行业" /></SelectTrigger>
-                  <SelectContent>{INDUSTRIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {INDUSTRIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                    <SelectItem value="其他">其他（自定义填写）</SelectItem>
+                  </SelectContent>
                 </Select>
+                {!INDUSTRIES.includes(brief.industry) && brief.industry !== "" && (
+                  <Input
+                    className="mt-2"
+                    value={brief.industry.trim()}
+                    onChange={(e) => set("industry", e.target.value)}
+                    placeholder="填写具体行业，例如：宠物用品、户外装备"
+                  />
+                )}
               </Field>
               <Field label="目标城市">
-                <Select value={brief.city} onValueChange={(value) => set("city", value)}>
-                  <SelectTrigger><SelectValue placeholder="选择主要区域" /></SelectTrigger>
-                  <SelectContent>{CITIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
-                </Select>
+                <Input
+                  value={brief.city}
+                  onChange={(e) => set("city", e.target.value)}
+                  placeholder="填写城市，如：成都、杭州，或全国"
+                />
               </Field>
               <Field label="产品 / 服务 *" wide>
                 <Textarea rows={3} value={brief.product} onChange={(e) => set("product", e.target.value)} placeholder="产品特点、核心卖点、规格与价格带" />
