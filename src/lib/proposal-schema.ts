@@ -110,6 +110,32 @@ export interface Bilingual {
   competitors?: CompetitorResult;
 }
 
+/** 发布给客户时展示的企业信息(LOGO / 联系方式 / 平台配图) */
+export const BrandingSchema = z.object({
+  companyName: z.string().default(""),
+  logoDataUrl: z.string().default(""),
+  contactName: z.string().default(""),
+  phone: z.string().default(""),
+  email: z.string().default(""),
+  website: z.string().default(""),
+  closing: z.string().default(""),
+  // key = 平台名称, value = 素材库中的素材 id
+  images: z.record(z.string(), z.string()).default({}),
+});
+
+export type ProposalBranding = z.infer<typeof BrandingSchema>;
+
+export const EMPTY_BRANDING: ProposalBranding = {
+  companyName: "",
+  logoDataUrl: "",
+  contactName: "",
+  phone: "",
+  email: "",
+  website: "",
+  closing: "",
+  images: {},
+};
+
 export type GroupName =
   | "strategy"
   | "content"
