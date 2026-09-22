@@ -98,7 +98,3 @@ src/
 │   └── export-slides-html.ts  # 网页幻灯片
 └── integrations/supabase/     # 数据库客户端（自动生成）
 ```
-
----
-
-Built with [Lovable](https://lovable.dev)
